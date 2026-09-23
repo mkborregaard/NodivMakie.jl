@@ -72,13 +72,72 @@ Differences from Phylo, all visual only:
 - Fan tip labels on the left half are flipped so they read left to right.
 - Tip-label gaps are in pixels (`tipoffset`), not in data units.
 
-## Towards interactivity
+## Maps: `sitemap`
 
-The plot object exposes the computed geometry. `p.tree_layout[]` is a `TreeLayout`
-(node names, heights, depths, parent indices). `p.node_points[]` holds the node coordinates,
-and `p.shown[]` the layout indices of the nodes with markers. So a pick on the marker
-scatter maps back to a node name through
-`p.tree_layout[].names[p.shown[][idx]]`.
+The Makie version of EcoBase's Plots recipes. It draws one value per site as a
+heatmap for gridded sites, or as a scatter for point sites.
+
+```julia
+sitemap(birds_g)                          # richness, empty cells not drawn
+sitemap(res_g.sos[node], birds_g; colormap = :RdYlBu, colorrange = (-8, 8))
+sitemap(:PC1, birds_g)                    # a site statistic
+sitemap(occupancy, birds_g)               # f(assemblage)
+```
+
+Missing and NaN values are transparent (`nan_color`). The values are the plot's first
+argument, so `p[1] = newvalues` redraws the map in place.
+
+## The node panel: `nodepanel`
+
+The Makie version of Nodiv's `plot_node`. It is a 2×2 grid:
+- top left: the richness of the node's clade;
+- top right: the node's SOS (`RdYlBu`, −8 to 8);
+- bottom row: the richness of the two descendant clades.
+
+The four map axes are linked, so zooming one zooms them all. The panel reads the
+cached SOS in `res` and never recomputes the analysis.
+
+```julia
+fig, np = nodepanel(birds_g, tree, "Node 15422", res_g)
+np.node[] = "Node 17672"                  # redraws in place
+```
+
+`nodepanel!(fig[1, 2], ...)` puts the panel into any layout position. `np.node` is an
+`Observable{String}`, so anything can drive it.
+
+For speed, clade richness uses a sites × species index built once per panel. It gives
+exactly `richness(get_clade(...))`, but a node switch takes about 10 ms instead of about
+0.8 s on the 18k-cell geographic data.
+
+## Linked tree and maps: `nodeexplorer`
+
+```julia
+using GLMakie
+div_g = divergent_nodes(res_g; by = :rms, threshold = 2)
+fig, ex = nodeexplorer(birds_g, tree, res_g; metric = :rms, nodes = div_g)
+```
+
+The fan tree marks `nodes`, coloured by `metric`, with the node panel beside it. Clicking
+a node marker, or the branch leading to a node, shows that node in the panel. A ring
+marks the selected node, and the label above the tree gives its name and metric value.
+Nodes without SOS, such as tips, are reported in the label and not shown. With
+CairoMakie you get the static figure for the first node, which is the one with the
+highest metric.
+
+The building blocks can be used on their own:
+- `onnodeclick(f, ax, treeplot)` calls `f(nodename)` on a click.
+- `nodeat(treeplot, plot, index)` turns a `pick` result into a node name.
+- `hassos(tree, sos, node)` tells whether a node can be shown in a panel.
+
+## Plot geometry
+
+A `treeplot` keeps its computed geometry on the plot object:
+- `p.tree_layout[]` is a `TreeLayout`, with node names, heights, depths and parent indices;
+- `p.node_points[]` holds the node coordinates;
+- `p.shown[]` holds the layout indices of the nodes with markers;
+- `p.branch_owner[]` gives, for each branch vertex, the node that branch leads to.
+
+`nodeat` is built on these.
 
 ## Testing
 

@@ -6,11 +6,20 @@ using Reexport
 @reexport using SpatialEcology
 @reexport using Nodiv
 using Makie: automatic, Automatic, Colorant, RGBAf, Point2d, Vec2f, to_color
+import EcoBase
+using SparseArrays: SparseMatrixCSC, sparse, rowvals, nonzeros, nzrange
+using EcoBase: richness, places, getcoords, coordinates, xrange, yrange
 
 include("layout.jl")
 include("treeplot.jl")
+include("sitemap.jl")
+include("nodepanel.jl")
+include("explorer.jl")
 
 export TreeLayout, treelayout
 export treeplot, treeplot!, TreePlot
+export sitemap, sitemap!, SiteMap
+export nodepanel, nodepanel!, NodePanel, hassos
+export nodeexplorer, NodeExplorer, nodeat, onnodeclick
 
 end
