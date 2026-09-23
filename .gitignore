@@ -1,0 +1,6 @@
+Manifest*.toml
+
+# generated figures
+*.png
+*.pdf
+.DS_Store
