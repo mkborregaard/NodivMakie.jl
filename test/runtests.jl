@@ -46,6 +46,20 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test p.joint_colorrange[] == (1.0, 3.0)
     end
 
+    @testset "hover labels" begin
+        fig, ax, p = treeplot(tree; markersize = 10)
+        l = treelayout(tree)
+        bl = only(filter(c -> c isa Lines, p.plots))
+        mk = filter(c -> c isa Scatter, p.plots)[2]
+        hover(plt, i) = plt.inspector_label[](plt, i, nothing)
+        @test hover(mk, findfirst(==(l.index["root"]), p.shown[])) == "root  (5 species)"
+        @test hover(bl, findfirst(==(l.index["e"]), p.branch_owner[])) == "e"
+        p.hoverlabel = n -> uppercase(n)
+        @test hover(bl, findfirst(==(l.index["n2"]), p.branch_owner[])) == "N2"
+        DataInspector(fig)                       # harmless without an interactive backend
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
+    end
+
     @testset "node markers" begin
         l = treelayout(tree)
         # scalar markersize -> internal nodes only (Phylo's rule)
@@ -135,6 +149,9 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         # children in Phylo's order, as in Nodiv's plot_node
         kids(n) = [getnodename(tree, c) for c in getchildren(tree, n)]
         @test [ax.title[] for ax in np.axes] == ["root", "SOS", kids("root")...]
+        @test (np.axes[3].titlecolor[], np.axes[4].titlecolor[]) == to_color.(cladecolors(:RdYlBu))
+        fig2, np2 = nodepanel(asm, tree, "root", res; titlecolors = false)
+        @test np2.axes[3].titlecolor[] == np2.axes[1].titlecolor[]
         @test np.maps[2].colorrange[] == (-8, 8)
         @test length(np.colorbars) == 4
         @test size(Makie.colorbuffer(fig)) != (0, 0)
@@ -170,6 +187,19 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test nodeat(tp, nothing, 0) === nothing
         ex.panel.node[] = "n1"
         @test ex.status[] == "n1   gnd = 0.4"
+        # the child clades' map titles in the same colours as their branches
+        c1c, c2c = cladecolors(:RdYlBu)
+        @test ex.panel.axes[3].titlecolor[] == to_color(c1c)
+        @test ex.panel.axes[4].titlecolor[] == to_color(c2c)
+        @test ex.panel.axes[1].titlecolor[] != to_color(c1c)
+        # hover labels: the node, its species count and metric value; a branch gives its node
+        @test ex.inspector isa DataInspector
+        hover(plt, i) = plt.inspector_label[](plt, i, nothing)
+        bl = branchlines(tp)
+        @test hover(bl, findfirst(==(l.index["n1"]), tp.branch_owner[])) == "n1  (2 species)\ngnd = 0.4"
+        @test hover(bl, findfirst(==(l.index["a"]), tp.branch_owner[])) == "a"
+        mk = markers(tp)[1]
+        @test hover(mk, findfirst(==(l.index["n3"]), tp.shown[])) == "n3  (2 species)\ngnd = 0.5"
         # the node shown: first child's clade in the high end of the SOS colours (positive
         # SOS = first child over-represented), second child's in the low end, rest grey
         cmap = Makie.to_colormap(:RdYlBu)

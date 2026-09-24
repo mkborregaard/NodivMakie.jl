@@ -24,6 +24,19 @@ struct NodePanel
 end
 
 sosvalues(res::Union{Nodiv.NodeAnalysis, Nodiv.NodeMetrics}) = res.sos
+
+"""
+    cladecolors(sos_colormap; inset = 0.15) -> (first, second)
+
+The colours standing for a node's two child clades: the high end of the SOS colour map
+for the first child (positive SOS: cells where the first child is over-represented) and
+the low end for the second, each taken `inset` in from the end.
+"""
+function cladecolors(sos_colormap; inset = 0.15)
+    cmap = Makie.to_colormap(sos_colormap)
+    return Makie.interpolated_getindex(cmap, 1.0 - inset),
+           Makie.interpolated_getindex(cmap, Float64(inset))
+end
 sosvalues(d::AbstractDict) = d
 
 """
@@ -85,6 +98,8 @@ Keyword arguments:
 - `richness_colormap = Reverse(:Spectral)`, `sos_colormap = :RdYlBu`,
   `sos_colorrange = (-8, 8)`: the colours of `plot_node`
 - `colorbars = true`: a colour bar beside each map
+- `titlecolors = true`: colour the child clades' map titles by [`cladecolors`](@ref), as
+  the explorer colours their branches (`colorinset` as its `focusinset`)
 - `axis = (;)`: attributes for all four axes
 - `images = nothing`: species images for the child-clade maps, as a
   [`SpeciesImages`](@ref) or a directory; each gets its widest-ranging species with an
@@ -97,7 +112,8 @@ Returns a [`NodePanel`](@ref).
 function nodepanel!(gp, assemblage, tree, node, res;
                     richness_colormap = Reverse(:Spectral), sos_colormap = :RdYlBu,
                     sos_colorrange = (-8, 8), colorbars = true, axis = (;),
-                    images = nothing, imageoptions = (;))
+                    images = nothing, imageoptions = (;), titlecolors = true,
+                    colorinset = 0.15)
     sos = sosvalues(res)
     node = node isa Observable ? node : Observable(String(node))
     hassos(tree, sos, node[]) ||
@@ -128,6 +144,9 @@ function nodepanel!(gp, assemblage, tree, node, res;
         colorbars && push!(cbs, Colorbar(gl[row, 2col], m; width = 10))
     end
     linkaxes!(axes...)
+    if titlecolors
+        axes[3].titlecolor, axes[4].titlecolor = cladecolors(sos_colormap; inset = colorinset)
+    end
     np = NodePanel(node, gl, axes, maps, cbs)
     if images !== nothing
         rangesize = get(imageoptions, :rangesize, assemblage)

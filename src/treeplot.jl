@@ -81,6 +81,12 @@ Which nodes get them is controlled by `shownodes`.
     (fan). `automatic` uses Phylo's margins: 0.15 and 0.5 with tips, none without.
     """
     tippad = automatic
+    """
+    The text shown on hovering over a node marker or a branch (with a `DataInspector`):
+    a function of the node name. `automatic` gives the name, and for internal nodes the
+    number of species. A branch shows the node it leads to.
+    """
+    hoverlabel = automatic
 
     Makie.mixin_colormap_attributes()...
     Makie.mixin_generic_plot_attributes()...
@@ -155,6 +161,10 @@ function Makie.plot!(p::TreePlot)
         return branchpaths(l, tt)
     end
     map!(nodepositions, p, [:tree_layout, :treetype], :node_points)
+    map!(p, :tree_layout, :clade_sizes) do l
+        lo, hi = tipspans(l)
+        return hi .- lo .+ 1
+    end
 
     map!(p, [:tree, :tree_layout, :branch_owner, :branchcolor, :branch_nan_color],
          :branch_colors) do tree, l, owner, bc, nanc
@@ -226,19 +236,31 @@ function Makie.plot!(p::TreePlot)
         return lo == hi ? (lo - 0.5, hi + 0.5) : (lo, hi)
     end
 
+    # hover text for the markers and branches: the node under the cursor
+    function hovertext(plt, i, _)
+        n = nodeat(p, plt, i)
+        n === nothing && return ""
+        f = p.hoverlabel[]
+        f === automatic || return string(f(n))
+        k = p.tree_layout[].index[n]
+        return p.tree_layout[].isleaf[k] ? n : "$n  ($(p.clade_sizes[][k]) species)"
+    end
+
     cmap = (colormap = p.colormap, colorscale = p.colorscale, colorrange = p.joint_colorrange,
             lowclip = p.lowclip, highclip = p.highclip, alpha = p.alpha)
 
     scatter!(p, p.pad_points; color = :transparent, markersize = 0, inspectable = false)
 
     lines!(p, p.branch_points; color = p.branch_colors, linewidth = p.linewidth,
-           linestyle = p.linestyle, nan_color = p.branch_nan_color, cmap...)
+           linestyle = p.linestyle, nan_color = p.branch_nan_color,
+           inspector_label = hovertext, cmap...)
 
     drawmarkers = any(!isnothing, (p.nodecolor[], p.markersize[], p.nodegroup[]))
     if drawmarkers && p.nodegroup[] === nothing
         scatter!(p, p.marker_points; color = p.marker_colors, markersize = p.marker_sizes,
                  marker = p.marker, strokewidth = p.strokewidth,
-                 strokecolor = p.strokecolor, nan_color = p.nan_color, cmap...)
+                 strokecolor = p.strokecolor, nan_color = p.nan_color,
+                 inspector_label = hovertext, cmap...)
     elseif drawmarkers
         # Groups are fixed when the plot is created, as they set the number of scatters
         groups = sort(unique(skipmissing(p.marker_groups[])))
@@ -251,7 +273,8 @@ function Makie.plot!(p::TreePlot)
             color = p.groupcolors[][mod1(k, length(p.groupcolors[]))]
             scatter!(p, getproperty(p, pts); color, markersize = getproperty(p, sizes),
                      marker = p.marker, strokewidth = p.strokewidth,
-                     strokecolor = p.strokecolor, label = string(g))
+                     strokecolor = p.strokecolor, label = string(g),
+                     inspector_label = hovertext)
         end
     end
 

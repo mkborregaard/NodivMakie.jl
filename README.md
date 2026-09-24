@@ -102,6 +102,10 @@ fig, np = nodepanel(birds_g, tree, "Node 15422", res_g)
 np.node[] = "Node 17672"                  # redraws in place
 ```
 
+The two child-clade map titles are coloured like the clades' branches in the explorer:
+the first child in the high (blue) end of the SOS colour map, the second in the low (red)
+end (`titlecolors = false` to turn this off).
+
 `nodepanel!(fig[1, 2], ...)` puts the panel into any layout position. `np.node` is an
 `Observable{String}`, so anything can drive it.
 
@@ -135,6 +139,13 @@ the node's name and metric value.
 Nodes without SOS, such as tips, are reported in the label and not shown. With
 CairoMakie you get the static figure for the first node, which is the one with the
 highest metric.
+
+Hovering shows a label (a Makie `DataInspector`, on by default with `inspector = true`).
+On the tree it gives the node under the cursor, with its number of species and metric
+value; a branch gives the node it leads to. On the maps it gives the cell's value.
+Outside the explorer, call `DataInspector(fig)` after `treeplot`; the tree's labels come
+from its `hoverlabel` attribute, a function of the node name. Like clicking, this needs
+an interactive backend.
 
 The building blocks can be used on their own:
 - `onnodeclick(f, ax, treeplot)` calls `f(nodename)` on a click.

@@ -61,9 +61,7 @@ over-represented; negative SOS (the low end) marks cells where the second child 
 """
 function focuscolors(tree, layout::TreeLayout, node, sos_colormap, contextcolor;
                      inset = 0.15)
-    cmap = Makie.to_colormap(sos_colormap)
-    high = Makie.interpolated_getindex(cmap, 1.0 - inset)
-    low = Makie.interpolated_getindex(cmap, Float64(inset))
+    high, low = cladecolors(sos_colormap; inset)
     colors = fill(to_color(contextcolor), length(layout))
     for (child, color) in zip(getchildren(tree, node)[1:2], (high, low))
         colors[layout.index[getnodename(tree, child)]] = color
@@ -79,7 +77,8 @@ end
 
 The parts of a [`nodeexplorer`](@ref): `figure`, the tree `axis` and `treeplot`, the
 [`NodePanel`](@ref) `panel`, `status`, the text of the label above the tree, and
-`images`, the species images around the tree ([`TreeImages`](@ref)) or `nothing`.
+`images`, the species images around the tree ([`TreeImages`](@ref)) or `nothing`,
+and `inspector`, the `DataInspector` showing hover labels (or `nothing`).
 """
 struct NodeExplorer
     figure::Figure
@@ -88,6 +87,7 @@ struct NodeExplorer
     panel::NodePanel
     status::Observable{String}
     images::Union{TreeImages, Nothing}
+    inspector::Union{DataInspector, Nothing}
 end
 
 metricvalues(res, metric::Symbol) = getfield(res, metric)
@@ -139,6 +139,9 @@ Keyword arguments:
   `whitebackground` and `clip` apply to the map images too
 - `panel = (;)`: keyword arguments for `nodepanel!`
 - `figure = (;)`: attributes for the `Figure`
+- `inspector = true`: hovering shows a label (a `DataInspector`): on the tree the node
+  (or the branch's node) with its number of species and `metric` value, on the maps the
+  cell's value. Needs an interactive backend.
 - `pickfn = pick`: the picking function (replaced in the tests, where CairoMakie cannot pick)
 
 Returns `(figure, explorer)`; see [`NodeExplorer`](@ref). Clicking needs an interactive
@@ -150,7 +153,7 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
                       markersize = 14, strokewidth = 1, strokecolor = :gray20,
                       contextcolor = :gray75, focusinset = 0.15, images = nothing,
                       imageoptions = (;), treekw = (;), panel = (;), figure = (;),
-                      pickfn = pick)
+                      inspector = true, pickfn = pick)
     sos = sosvalues(res)
     vals = metricvalues(res, metric)
     nodes = nodes === automatic ? defaultnodes(res, metric) :
@@ -170,7 +173,8 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
     ax = Axis(treegrid[2, 1]; autolimitaspect = treetype === :fan ? 1 : nothing)
     hidedecorations!(ax)
     hidespines!(ax)
-    np = nodepanel!(fig[1, 2], assemblage, tree, node, res; panel...)
+    np = nodepanel!(fig[1, 2], assemblage, tree, node, res;
+                    merge((; colorinset = focusinset), panel)...)
     colsize!(fig.layout, 1, Relative(0.45))
 
     # the node shown: its two clades in the SOS colours, the rest of the tree greyed
@@ -205,5 +209,14 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
             status[] = "$n: no SOS (a tip, or not analysed)"
         end
     end
-    return fig, NodeExplorer(fig, ax, tp, np, status, ti)
+    # hover labels: the node, its size, and its metric value
+    tp.hoverlabel = function (n)
+        k = tp.tree_layout[].index[n]
+        lab = tp.tree_layout[].isleaf[k] ? n : "$n  ($(tp.clade_sizes[][k]) species)"
+        haskey(vals, n) && vals[n] isa Real && isfinite(vals[n]) &&
+            (lab *= "\n$label = $(round(vals[n]; sigdigits = 3))")
+        return lab
+    end
+    di = inspector ? DataInspector(fig) : nothing
+    return fig, NodeExplorer(fig, ax, tp, np, status, ti, di)
 end
