@@ -1,9 +1,8 @@
 # NodivMakie
 
 Makie plotting for [Nodiv](https://github.com/mkborregaard/Nodiv.jl): phylogenies and
-maps for node-based analysis, built with Makie so that they can become interactive (clickable
-nodes linked to maps) and be combined in complex layouts. This is a private package for
-personal use.
+maps for node-based analysis, built with Makie so that they are interactive (clickable
+nodes linked to maps, hover labels) and can be combined in complex layouts.
 
 `using NodivMakie` loads and re-exports Makie, Phylo, SpatialEcology and Nodiv. You pick
 the backend yourself: `using CairoMakie` for files, `using GLMakie` for interactive windows.

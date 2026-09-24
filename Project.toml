@@ -17,11 +17,10 @@ SpatialEcology = "348f2d5d-71a3-5ad4-b565-8af070f99681"
 
 [sources]
 Nodiv = {path = "../Nodiv"}
-SpatialEcology = {rev = "main", url = "https://github.com/EcoJulia/SpatialEcology.jl"}
 
 [compat]
 ColorTypes = "0.11, 0.12"
-EcoBase = "0.2"
+EcoBase = "0.2.1"
 FileIO = "1"
 ImageIO = "0.6"
 Makie = "0.24"
@@ -29,5 +28,5 @@ Nodiv = "0.1"
 Phylo = "0.5.4"
 Reexport = "1"
 SparseArrays = "1"
-SpatialEcology = "0.11"
+SpatialEcology = "0.11.1"
 julia = "1.11"
