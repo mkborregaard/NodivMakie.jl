@@ -445,9 +445,21 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test ip.inspector_label[](ip, (1, 1), nothing) ==
               "$(replace(c1.shown, "_" => " "))\nfor $(c1.clade) ($(length(c1.tips)) species)"
         @test ip.inspector_hover[] isa Function
+        # only over the visible bird, not the transparent corners of its disc
         di = DataInspector(fig)
+        Makie.colorbuffer(fig)
+        (x0, x1), (y0, y1) = ip[1][].data, ip[2][].data
+        function moveto(x, y)                                # data coordinates -> mouse
+            px = Makie.project(ax.scene, :data, :pixel, Point3d(x, y, 0))
+            events(fig).mouseposition[] = Tuple(Float64.(px[Vec(1, 2)] .+ ax.scene.viewport[].origin))
+        end
+        moveto((x0 + x1) / 2, (y0 + y1) / 2)
+        @test NodivMakie.overimage(ip)
         @test ip.inspector_hover[](di, ip, 1) == true         # runs against Makie's inspector
         @test di.plot.text[] == ip.inspector_label[](ip, (1, 1), nothing)
+        moveto(x0 + 0.03 * (x1 - x0), y0 + 0.03 * (y1 - y0)) # a transparent corner
+        @test !NodivMakie.overimage(ip)
+        @test ip.inspector_hover[](di, ip, 1) == false
         @test size(Makie.colorbuffer(fig)) != (0, 0)
         # a directory path works too, with options
         fig, ax, tp = treeplot(rt; treetype = :fan, showtips = false)
@@ -504,11 +516,18 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         # hover text follows the node shown
         np.node[] = "root"
         k1 = getnodename(tree, getchildren(tree, "root")[1])
-        @test plots[1].inspector_label[](plots[1], (1, 1), nothing) ==
-              "$(best(k1))\nwidest-ranging species of $k1"
+        @test plots[1].inspector_label[](plots[1], (1, 1), nothing) == best(k1)
         np.node[] = "n2"
         k1 = getnodename(tree, getchildren(tree, "n2")[1])
-        @test endswith(plots[1].inspector_label[](plots[1], (1, 1), nothing), "of $k1")
+        @test plots[1].inspector_label[](plots[1], (1, 1), nothing) == best(k1)
+        # in the maps' screen space too: over the bird, not its corners
+        Makie.colorbuffer(fig)
+        (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data
+        o = np.axes[3].scene.viewport[].origin
+        events(fig).mouseposition[] = (o[1] + (x0 + x1) / 2, o[2] + (y0 + y1) / 2)
+        @test NodivMakie.overimage(plots[1])
+        events(fig).mouseposition[] = (o[1] + x0 + 1, o[2] + y0 + 1)
+        @test !NodivMakie.overimage(plots[1])
         @test best("n1") == "a"                          # b has no image
         vp = np.axes[3].scene.viewport[]
         (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data

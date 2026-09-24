@@ -6,6 +6,7 @@ using Reexport
 @reexport using SpatialEcology
 @reexport using Nodiv
 using Makie: automatic, Automatic, Colorant, RGBAf, Point2d, Vec2f, to_color
+using ColorTypes: alpha
 import EcoBase
 using SparseArrays: SparseMatrixCSC, sparse, rowvals, nonzeros, nzrange
 using EcoBase: richness, places, getcoords, coordinates, xrange, yrange, occupancy

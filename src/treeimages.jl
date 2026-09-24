@@ -44,12 +44,28 @@ function outlinepoints!(pts, x, y, w, sx, sy, shape)
     push!(pts, Point2d(NaN, NaN))
 end
 
-# Hovering over an image (with a `DataInspector`) shows `text` (a string or an Observable
-# of one) as a plain tooltip. Makie's own image tooltip shows the pixel's colour and marks
-# the pixel; this shows only the text. The text is also the plot's `inspector_label`.
+# Whether the cursor is over a visible pixel of an image plot (at least half opaque), so
+# the transparent surroundings of a bird do not count as the image
+function overimage(plot)
+    scene = Makie.parent_scene(plot)
+    pos = plot.space[] === :pixel ? Makie.mouseposition_px(scene) : Makie.mouseposition(scene)
+    (x0, x1), (y0, y1) = plot[1][].data, plot[2][].data
+    img = Makie._to_array(plot[3][])
+    u, v = (pos[1] - x0) / (x1 - x0), (pos[2] - y0) / (y1 - y0)
+    (0 <= u < 1 && 0 <= v < 1) || return false
+    i = clamp(floor(Int, u * size(img, 1)) + 1, 1, size(img, 1))
+    j = clamp(floor(Int, v * size(img, 2)) + 1, 1, size(img, 2))
+    return alpha(img[i, j]) >= 0.5
+end
+
+# Hovering over an image's visible pixels (with a `DataInspector`) shows `text` (a string
+# or an Observable of one) as a plain tooltip; over its transparent parts, whatever is
+# underneath is inspected instead. Makie's own image tooltip shows the pixel's colour and
+# marks the pixel; this shows only the text. The text is also the plot's `inspector_label`.
 function imagehover!(p, text)
     p.inspector_label = (plot, idx, pos) -> string(to_value(text))
     p.inspector_hover = function (inspector, plot, idx)
+        overimage(plot) || return false
         pos = Point2f(Makie.mouseposition_px(inspector.root))
         Makie.update_tooltip_alignment!(inspector, pos; text = string(to_value(text)))
         return true
@@ -100,8 +116,8 @@ For a fan, the axis must keep a 1:1 aspect (`treeplot` and `nodeexplorer` set th
 they create the axis). Turn tip labels off (`showtips = false`), as the images take
 their place.
 
-Hovering over an image (with a `DataInspector`) shows its species and the clade it
-stands for.
+Hovering over a bird (with a `DataInspector`) shows its species and the clade it stands
+for; its transparent surroundings do not count.
 """
 function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = automatic,
                      nimages = automatic, gap = 0.04, spacing = 0.1, shape = :circle,
@@ -208,7 +224,8 @@ The images follow the node shown, and a clade with no image gets none.
 - `shape`, `fit`, `whitebackground`, `clip`: as for [`treeimages!`](@ref)
 
 The images are drawn in the maps' screen space: they keep their place and size when the
-maps are zoomed or panned. Hovering over one (with a `DataInspector`) shows its species.
+maps are zoomed or panned. Hovering over the bird (with a `DataInspector`) shows its
+species.
 Returns the two image plots.
 """
 function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, margin = 6,
@@ -235,9 +252,7 @@ function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, ma
         ys = lift((vp, s) -> (vp.widths[2] - margin - s) .. (vp.widths[2] - margin),
                   ax.scene.viewport, px)
         p = image!(ax.scene, xs, ys, img; space = :pixel, visible = lift(!isnothing, species))
-        imagehover!(p, lift(species, np.node) do sp, n
-            sp === nothing ? "" : "$(displayname(sp))\nwidest-ranging species of $(child(n, k))"
-        end)
+        imagehover!(p, lift(sp -> sp === nothing ? "" : displayname(sp), species))
         translate!(p, 0, 0, 1)                   # above the map
         push!(plots, p)
     end
