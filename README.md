@@ -188,9 +188,18 @@ for illustrations drawn on white, such as the Birds of the World ones; the image
 sized so the bird itself, not its white card, fills the disc. `clip = 0.02` enlarges it
 further by letting the outermost 2% of the bird (a tail tip, wingtips) be cut off at the
 disc's edge; the default 0 never cuts anything. Links to missing files
-are skipped, so a folder of links can point at images that are still downloading. `showclades = true` marks the tips each
-image stands for. A dendrogram's images go in a narrow axis beside the tree, linked in
+are skipped, so a folder of links can point at images that are still downloading. There is no outline by default (`strokewidth = 1`
+adds one). `showclades = true` marks the tips each image stands for. A dendrogram's images go in a narrow axis beside the tree, linked in
 y, so they stay square however the tree axis is shaped.
+
+### In the node panel
+
+`cladeimages!(panel, tree, images, rangesize)` puts an image of each child clade's
+widest-ranging species (with an image) in the top-right corner of its richness map. The
+images follow the node shown. They are fixed in screen space, so zooming the maps leaves
+them in place, and their size is `pixelsize`. `nodepanel(...; images = dir)` does this
+directly. In `nodeexplorer(...; images = dir)` they are always the same size as the images
+around the tree.
 
 ## Plot geometry
 

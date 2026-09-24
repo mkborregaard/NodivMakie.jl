@@ -434,6 +434,42 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         fig, ex = nodeexplorer(asm, tree, res; images = edir)
         @test ex.images isa TreeImages
         @test size(Makie.colorbuffer(fig)) != (0, 0)
+        @test !any(p -> p isa Lines, ex.images.plots)          # no outline by default
+        # the child-clade maps get images the same size as the tree's
+        pximgs = [only(filter(p -> p isa Image && p.space[] === :pixel, ex.panel.axes[k].scene.plots))
+                  for k in (3, 4)]
+        w = ex.images.pixelsize[]
+        @test w > 10
+        for p in pximgs
+            @test p.visible[] == false || -(reverse(p[1][].data)...) ≈ w
+        end
+
+        # cladeimages!: each child clade's largest-range species with an image
+        eimgs = SpeciesImages(edir)
+        occ = NodivMakie.rangesizes(asm)
+        best(clade) = (sps = filter(s -> haskey(eimgs, s), nodespecies(tree, clade));
+                       isempty(sps) ? nothing : first(sort(sps; by = s -> (-occ[s], s))))
+        fig, np = nodepanel(asm, tree, "root", res)
+        plots = cladeimages!(np, tree, eimgs, asm; pixelsize = 50)
+        Makie.colorbuffer(fig)
+        function check(node)
+            np.node[] = node
+            for (k, p) in enumerate(plots)
+                sp = best(getnodename(tree, getchildren(tree, node)[k]))
+                @test p.visible[] == (sp !== nothing)
+                sp === nothing || @test p[3][] == NodivMakie.markerimage(eimgs[sp], :circle)
+            end
+        end
+        check("root"); check("n2"); check("n1"); check("n3")
+        @test best("n1") == "a"                          # b has no image
+        vp = np.axes[3].scene.viewport[]
+        (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data
+        @test x1 ≈ vp.widths[1] - 6 && y1 ≈ vp.widths[2] - 6   # in the top-right corner
+        @test x1 - x0 ≈ 50 && y1 - y0 ≈ 50
+        # via nodepanel's keyword
+        fig, np = nodepanel(asm, tree, "root", res; images = edir, imageoptions = (; pixelsize = 40))
+        @test count(p -> p isa Image && p.space[] === :pixel, np.axes[4].scene.plots) == 1
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
         fig, ex = nodeexplorer(asm, tree, res)
         @test ex.images === nothing
     end

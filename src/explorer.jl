@@ -131,10 +131,12 @@ Keyword arguments:
 - `contextcolor = :gray75`: the branches outside the two clades of the node shown
 - `focusinset = 0.15`: how far in from the ends of the SOS colour map the two clade
   colours are taken; 0 gives the end colours, larger is lighter
-- `images = nothing`: species images to draw around the tree, as a
-  [`SpeciesImages`](@ref) or a directory path; see [`treeimages!`](@ref). Range sizes
-  are taken from `assemblage` unless `imageoptions` has a `rangesize`.
-- `imageoptions = (;)`: keyword arguments for `treeimages!`
+- `images = nothing`: species images, as a [`SpeciesImages`](@ref) or a directory path:
+  drawn around the tree (see [`treeimages!`](@ref)) and in the corner of the two
+  child-clade maps at the same size (see [`cladeimages!`](@ref)). Range sizes are taken
+  from `assemblage` unless `imageoptions` has a `rangesize`.
+- `imageoptions = (;)`: keyword arguments for `treeimages!`; `shape`, `fit`,
+  `whitebackground` and `clip` apply to the map images too
 - `panel = (;)`: keyword arguments for `nodepanel!`
 - `figure = (;)`: attributes for the `Figure`
 - `pickfn = pick`: the picking function (replaced in the tests, where CairoMakie cannot pick)
@@ -185,7 +187,10 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
     if images !== nothing
         rangesize = get(imageoptions, :rangesize, assemblage)
         opts = Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})
+        images isa AbstractString && (images = SpeciesImages(images))
         ti = treeimages!(ax, tp, images, rangesize; opts...)
+        shared = NamedTuple(k => v for (k, v) in pairs(opts) if k in (:shape, :fit, :whitebackground, :clip))
+        cladeimages!(np, tree, images, rangesize; pixelsize = ti.pixelsize, shared...)
     end
     Colorbar(treegrid[3, 1], tp; vertical = false, flipaxis = false, label,
              tellheight = true, width = Relative(0.6))

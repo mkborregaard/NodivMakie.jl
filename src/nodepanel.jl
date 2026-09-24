@@ -86,12 +86,18 @@ Keyword arguments:
   `sos_colorrange = (-8, 8)`: the colours of `plot_node`
 - `colorbars = true`: a colour bar beside each map
 - `axis = (;)`: attributes for all four axes
+- `images = nothing`: species images for the child-clade maps, as a
+  [`SpeciesImages`](@ref) or a directory; each gets its widest-ranging species with an
+  image in the top-right corner (see [`cladeimages!`](@ref)). Range sizes are taken from
+  `assemblage` unless `imageoptions` has a `rangesize`.
+- `imageoptions = (;)`: keyword arguments for `cladeimages!`
 
 Returns a [`NodePanel`](@ref).
 """
 function nodepanel!(gp, assemblage, tree, node, res;
                     richness_colormap = Reverse(:Spectral), sos_colormap = :RdYlBu,
-                    sos_colorrange = (-8, 8), colorbars = true, axis = (;))
+                    sos_colorrange = (-8, 8), colorbars = true, axis = (;),
+                    images = nothing, imageoptions = (;))
     sos = sosvalues(res)
     node = node isa Observable ? node : Observable(String(node))
     hassos(tree, sos, node[]) ||
@@ -122,7 +128,13 @@ function nodepanel!(gp, assemblage, tree, node, res;
         colorbars && push!(cbs, Colorbar(gl[row, 2col], m; width = 10))
     end
     linkaxes!(axes...)
-    return NodePanel(node, gl, axes, maps, cbs)
+    np = NodePanel(node, gl, axes, maps, cbs)
+    if images !== nothing
+        rangesize = get(imageoptions, :rangesize, assemblage)
+        cladeimages!(np, tree, images, rangesize;
+                     Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})...)
+    end
+    return np
 end
 
 """

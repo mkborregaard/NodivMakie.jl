@@ -9,12 +9,15 @@ The species images drawn by [`treeimages!`](@ref).
 - `geometry`: `(; nimages, size, radius)` from [`imagegeometry`](@ref)
 - `axis`: the axis the images are in (for a dendrogram, a narrow axis beside the tree)
 - `plots`: the image plots
+- `pixelsize`: `Observable` of the images' width on screen, in pixels (it follows the
+  figure's size); e.g. for images elsewhere at the same size, see [`cladeimages!`](@ref)
 """
 struct TreeImages
     clades::Vector{CladeImage}
     geometry::NamedTuple
     axis::Axis
     plots::Vector{Any}
+    pixelsize::Observable{Float64}
 end
 
 """
@@ -72,8 +75,8 @@ Keyword arguments:
   drawn on white. The image is then sized so the subject itself fills the disc.
 - `clip = 0`: the share of the subject that may be cut off at the disc's edge for a larger
   image, e.g. 0.02 (a tail tip or the feet). 0 never cuts anything.
-- `strokecolor = :gray40`, `strokewidth = 1`: the outline of each image (`strokewidth = 0`
-  for none)
+- `strokewidth = 0`, `strokecolor = :gray40`: an outline around each image (none by
+  default)
 - `showclades = false`: draw a thin line along the tips each image stands for, in
   `cladecolor = :gray50`
 
@@ -83,7 +86,7 @@ their place.
 """
 function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = automatic,
                      nimages = automatic, gap = 0.04, spacing = 0.1, shape = :circle,
-                     strokecolor = :gray40, strokewidth = 1, showclades = false,
+                     strokecolor = :gray40, strokewidth = 0, showclades = false,
                      cladecolor = :gray50, minclade = 0.5, fit = :pad,
                      whitebackground = false, clip = 0.0)
     shape in (:circle, :square) || throw(ArgumentError("`shape` must be :circle or :square"))
@@ -113,6 +116,8 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
             outlinepoints!(outline, p[1], p[2], s, 1, 1, shape)
         end
         imgax = ax
+        pixelsize = lift((vp, lims) -> s * vp.widths[1] / max(lims.widths[1], eps()),
+                         ax.scene.viewport, ax.finallimits)
         if showclades
             R = maximum(l.height)
             arcs = Point2d[]
@@ -141,6 +146,7 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         pixels_per_tip = lift((vp, lims) -> vp.widths[2] / max(lims.widths[2], eps()),
                               ax.scene.viewport, ax.finallimits)
         on(pxy -> (imgax.width = max(1.0, s * pxy * (1 + g))), pixels_per_tip; update = true)
+        pixelsize = lift(pxy -> s * pxy, pixels_per_tip)
         for c in shown
             img = markerimage(images[c.shown], shape; fit, whitebackground, clip)
             y = centre(c)
@@ -165,5 +171,52 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         push!(plots, lines!(imgax, outline; color = strokecolor, linewidth = strokewidth,
                             inspectable = false))
     end
-    return TreeImages(clades, geo, imgax, plots)
+    return TreeImages(clades, geo, imgax, plots, pixelsize)
+end
+
+"""
+    cladeimages!(panel, tree, images, rangesize; pixelsize = 60, kwargs...) -> Vector
+
+Put a species image in the top-right corner of the two child-clade richness maps of a
+[`NodePanel`](@ref): each clade's species with the largest range size that has an image.
+The images follow the node shown, and a clade with no image gets none.
+
+- `images`, `rangesize`: as for [`treeimages!`](@ref)
+- `pixelsize = 60`: the images' width on screen, in pixels, or an `Observable` of it (the
+  explorer passes its tree images' `pixelsize`, so both are the same size)
+- `margin = 6`: the gap to the map's corner, in pixels
+- `shape`, `fit`, `whitebackground`, `clip`: as for [`treeimages!`](@ref)
+
+The images are drawn in the maps' screen space: they keep their place and size when the
+maps are zoomed or panned. Returns the two image plots.
+"""
+function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, margin = 6,
+                      shape = :circle, fit = :pad, whitebackground = false, clip = 0.0)
+    images isa AbstractString && (images = SpeciesImages(images))
+    rs = rangesizes(rangesize)
+    function representative(clade)
+        sps = filter(s -> haskey(images, s), nodespecies(tree, clade))
+        isempty(sps) && return nothing
+        return first(sort(sps; by = s -> (-get(rs, s, 0.0), s)))
+    end
+    child(n, k) = getnodename(tree, getchildren(tree, n)[k])
+    px = pixelsize isa Observable ? pixelsize : Observable(Float64(pixelsize))
+    blank = fill(RGBAf(0, 0, 0, 0), 2, 2)
+    plots = Any[]
+    for k in 1:2
+        ax = np.axes[2 + k]
+        species = Observable{Union{String, Nothing}}(representative(child(np.node[], k)))
+        on(n -> (species[] = representative(child(n, k))), np.node)
+        img = lift(sp -> sp === nothing ? blank :
+                         markerimage(images[sp], shape; fit, whitebackground, clip), species)
+        xs = lift((vp, s) -> (vp.widths[1] - margin - s) .. (vp.widths[1] - margin),
+                  ax.scene.viewport, px)
+        ys = lift((vp, s) -> (vp.widths[2] - margin - s) .. (vp.widths[2] - margin),
+                  ax.scene.viewport, px)
+        p = image!(ax.scene, xs, ys, img; space = :pixel, inspectable = false,
+                   visible = lift(!isnothing, species))
+        translate!(p, 0, 0, 1)                   # above the map
+        push!(plots, p)
+    end
+    return plots
 end
