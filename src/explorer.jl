@@ -46,6 +46,31 @@ function _onnodeclick(f, ax::Axis, tp::TreePlot, pickfn; range = 10)
 end
 
 """
+    focuscolors(tree, layout, node, sos_colormap, contextcolor)
+
+One branch colour per node of `layout` (a [`TreeLayout`](@ref)), for `treeplot`'s
+`branchcolor`. The clade of `node`'s first child is drawn in the high end of
+`sos_colormap`, the clade of its second child in the low end, and every other branch
+in `contextcolor`.
+
+This follows Nodiv's SOS: a node's SOS is the standardised richness of its FIRST child
+(`getchildren(tree, node)[1]`) against the null, which keeps the parent clade's richness
+per cell fixed. Positive SOS (the high end) marks cells where the first child is
+over-represented; negative SOS (the low end) marks cells where the second child is.
+"""
+function focuscolors(tree, layout::TreeLayout, node, sos_colormap, contextcolor)
+    cmap = Makie.to_colormap(sos_colormap)
+    colors = fill(to_color(contextcolor), length(layout))
+    for (child, color) in zip(getchildren(tree, node)[1:2], (last(cmap), first(cmap)))
+        colors[layout.index[getnodename(tree, child)]] = color
+        for d in getdescendants(tree, child)
+            colors[layout.index[getnodename(tree, d)]] = color
+        end
+    end
+    return colors
+end
+
+"""
     NodeExplorer
 
 The parts of a [`nodeexplorer`](@ref): `figure`, the tree `axis` and `treeplot`, the
@@ -66,8 +91,10 @@ metricvalues(res, metric::AbstractDict) = metric
     nodeexplorer(assemblage, tree, res; kwargs...)
 
 The tree and a [`nodepanel`](@ref) side by side. The tree marks `nodes` coloured by
-`metric`; clicking a marker or a branch shows that node in the panel, and a ring
-marks the node shown. `res` is the cached `NodeMetrics`/`NodeAnalysis`.
+`metric`; clicking a marker or a branch shows that node in the panel. The two clades
+below the node shown are drawn in the end colours of the SOS colour map (see
+[`focuscolors`](@ref)), and the rest of the tree in `contextcolor`. `res` is the cached
+`NodeMetrics`/`NodeAnalysis`.
 
 Keyword arguments:
 - `metric = :gnd`: a field of `res` (`:gnd`, `:rms`, `:ses`, ...) or a Dict of node => value
@@ -75,7 +102,9 @@ Keyword arguments:
   Pass e.g. `divergent_nodes(res; ...)` to mark only those.
 - `node`: the node shown first; default the marked node with the highest metric value
 - `treetype = :fan`, `showtips = false`, `colormap = :YlOrRd`, `colorrange = automatic`,
-  `markersize = 8`: passed to `treeplot`, as is everything in `treekw = (;)`
+  `markersize = 14`: passed to `treeplot`, as is everything in `treekw = (;)`. The
+  branch colours are set by the explorer, so `branchcolor` is overridden.
+- `contextcolor = :gray75`: the branches outside the two clades of the node shown
 - `panel = (;)`: keyword arguments for `nodepanel!`
 - `figure = (;)`: attributes for the `Figure`
 - `pickfn = pick`: the picking function (replaced in the tests, where CairoMakie cannot pick)
@@ -85,8 +114,9 @@ backend (`using GLMakie`); with CairoMakie you get the figure for the initial no
 """
 function nodeexplorer(assemblage, tree, res; metric = :gnd, nodes = automatic,
                       node = automatic, treetype = :fan, showtips = false,
-                      colormap = :YlOrRd, colorrange = automatic, markersize = 8,
-                      treekw = (;), panel = (;), figure = (;), pickfn = pick)
+                      colormap = :YlOrRd, colorrange = automatic, markersize = 14,
+                      contextcolor = :gray75, treekw = (;), panel = (;), figure = (;),
+                      pickfn = pick)
     sos = sosvalues(res)
     vals = metricvalues(res, metric)
     nodes = nodes === automatic ? collect(keys(sos)) : collect(nodes)
@@ -103,19 +133,18 @@ function nodeexplorer(assemblage, tree, res; metric = :gnd, nodes = automatic,
     ax = Axis(treegrid[2, 1]; autolimitaspect = treetype === :fan ? 1 : nothing)
     hidedecorations!(ax)
     hidespines!(ax)
-    tp = treeplot!(ax, tree; treetype, showtips, nodecolor = marked, markersize,
-                   colormap, colorrange, treekw...)
-    Colorbar(treegrid[3, 1], tp; vertical = false, flipaxis = false, label,
-             tellheight = true, width = Relative(0.6))
-
     np = nodepanel!(fig[1, 2], assemblage, tree, node, res; panel...)
     colsize!(fig.layout, 1, Relative(0.45))
 
-    # ring around the node shown
-    names = tp.tree_layout[].index
-    ring = lift(n -> [tp.node_points[][names[n]]], np.node)
-    scatter!(ax, ring; marker = :circle, color = :transparent, strokecolor = :black,
-             strokewidth = 2, markersize = 3markersize, inspectable = false)
+    # the node shown: its two clades in the SOS colours, the rest of the tree greyed
+    layout = treelayout(tree)
+    sos_colormap = np.maps[2].colormap[]
+    focus(n) = focuscolors(tree, layout, n, sos_colormap, contextcolor)
+    tp = treeplot!(ax, tree; treetype, showtips, nodecolor = marked, markersize,
+                   colormap, colorrange, merge(treekw, (; branchcolor = focus(node)))...)
+    on(n -> (tp.branchcolor = focus(n)), np.node)
+    Colorbar(treegrid[3, 1], tp; vertical = false, flipaxis = false, label,
+             tellheight = true, width = Relative(0.6))
 
     describe(n) = haskey(vals, n) && vals[n] isa Real ? "$n   $label = $(round(vals[n]; sigdigits = 3))" : n
     status[] = describe(node)

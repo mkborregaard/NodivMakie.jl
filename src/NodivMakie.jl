@@ -20,6 +20,6 @@ export TreeLayout, treelayout
 export treeplot, treeplot!, TreePlot
 export sitemap, sitemap!, SiteMap
 export nodepanel, nodepanel!, NodePanel, hassos
-export nodeexplorer, NodeExplorer, nodeat, onnodeclick
+export nodeexplorer, NodeExplorer, nodeat, onnodeclick, focuscolors
 
 end

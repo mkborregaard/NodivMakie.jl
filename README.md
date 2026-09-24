@@ -118,8 +118,13 @@ fig, ex = nodeexplorer(birds_g, tree, res_g; metric = :rms, nodes = div_g)
 ```
 
 The fan tree marks `nodes`, coloured by `metric`, with the node panel beside it. Clicking
-a node marker, or the branch leading to a node, shows that node in the panel. A ring
-marks the selected node, and the label above the tree gives its name and metric value.
+a node marker, or the branch leading to a node, shows that node in the panel. In the
+tree, the selected node's first child clade is drawn in the high (blue) end of the SOS
+colour map and its second child clade in the low (red) end. The rest of the tree is
+greyed out (`contextcolor`). This follows Nodiv's SOS, which is the first child's
+richness against the null: blue cells on the SOS map are where the blue clade is
+over-represented, and red cells where the red clade is. The label above the tree gives
+the node's name and metric value.
 Nodes without SOS, such as tips, are reported in the label and not shown. With
 CairoMakie you get the static figure for the first node, which is the one with the
 highest metric.
@@ -128,6 +133,8 @@ The building blocks can be used on their own:
 - `onnodeclick(f, ax, treeplot)` calls `f(nodename)` on a click.
 - `nodeat(treeplot, plot, index)` turns a `pick` result into a node name.
 - `hassos(tree, sos, node)` tells whether a node can be shown in a panel.
+- `focuscolors(tree, layout, node, sos_colormap, contextcolor)` gives the per-branch
+  colours used for the selected node.
 
 ## Plot geometry
 

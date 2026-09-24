@@ -169,8 +169,27 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test nodeat(tp, nothing, 0) === nothing
         ex.panel.node[] = "n1"
         @test ex.status[] == "n1   gnd = 0.4"
-        ring = only(filter(p -> p isa Scatter && !(p.parent isa TreePlot), ex.axis.scene.plots))
-        @test ring[1][][1] == tp.node_points[][l.index["n1"]]
+        # the node shown: first child's clade in the high end of the SOS colours (positive
+        # SOS = first child over-represented), second child's in the low end, rest grey
+        cmap = Makie.to_colormap(:RdYlBu)
+        branchcolor(n) = branchlines(tp).color[][findfirst(==(l.index[n]), tp.branch_owner[])]
+        c1, c2 = [getnodename(tree, c) for c in getchildren(tree, "n1")]
+        @test branchcolor(c1) == last(cmap)
+        @test branchcolor(c2) == first(cmap)
+        @test branchcolor("n2") == branchcolor("n3") == branchcolor("c") == to_color(:gray75)
+        ex.panel.node[] = "n2"                      # follows the node shown, descendants too
+        k1, k2 = [getnodename(tree, c) for c in getchildren(tree, "n2")]
+        @test all(n -> branchcolor(n) == last(cmap), [k1; [getnodename(tree, d) for d in getdescendants(tree, k1)]])
+        @test all(n -> branchcolor(n) == first(cmap), [k2; [getnodename(tree, d) for d in getdescendants(tree, k2)]])
+        @test branchcolor("n1") == branchcolor("a") == to_color(:gray75)
+        @test all(==(14), markers(tp)[1].markersize[] .* 1)   # larger node markers
+        @test !any(p -> p isa Scatter && !(p.parent isa TreePlot), ex.axis.scene.plots)  # no ring
+        # a custom SOS colour map carries over to the tree
+        fig3, ex3 = nodeexplorer(asm, tree, res; panel = (; sos_colormap = Reverse(:RdBu)))
+        l3, tp3 = ex3.treeplot.tree_layout[], ex3.treeplot
+        first_child = getnodename(tree, getchildren(tree, "n2")[1])
+        col = branchlines(tp3).color[][findfirst(==(l3.index[first_child]), tp3.branch_owner[])]
+        @test col == last(Makie.to_colormap(Reverse(:RdBu)))
         # clicks: real Makie mouse events through the explorer's handler, with a
         # stand-in for the backend's pick (CairoMakie cannot pick)
         target = Ref{Any}((nothing, 0))
