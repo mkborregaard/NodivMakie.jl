@@ -18,7 +18,7 @@ The species images in `dir`, one file per species, named by species (see
 at most `maxpixels` on a side, and cached.
 
 `haskey(images, species)` tells whether a species has an image, and `images[species]`
-gives it as a matrix of colours.
+gives it as a matrix of colours. Links whose target is missing are ignored.
 """
 struct SpeciesImages
     dir::String
@@ -36,6 +36,7 @@ function SpeciesImages(dir::AbstractString; extensions = (".png", ".jpg", ".jpeg
     for f in sort(readdir(dir))
         stem, ext = splitext(f)
         lowercase(ext) in exts || continue
+        isfile(joinpath(dir, f)) || continue        # e.g. a link to a file not there (yet)
         get!(files, speciesname(stem), joinpath(dir, f))
     end
     return SpeciesImages(String(dir), files, maxpixels, Dict{String, Matrix{RGBAf}}())
@@ -85,11 +86,41 @@ function discmask(img::AbstractMatrix{RGBAf})
             end for i in 1:n, j in 1:size(img, 2)]
 end
 
-# An image ready to draw with `image!` over a square: cropped to its central square,
-# masked to a disc for `shape = :circle`, and turned so it is upright (`image!` puts
-# the first matrix index along x and the second along y, upwards).
-function markerimage(img::AbstractMatrix{RGBAf}, shape::Symbol)
-    sq = squarecrop(img)
-    shape === :circle && (sq = discmask(sq))
+# The image centred on a transparent n x n canvas, so nothing is cut off
+function padto(img::AbstractMatrix{RGBAf}, n)
+    h, w = size(img)
+    out = fill(RGBAf(0, 0, 0, 0), n, n)
+    i0, j0 = (n - h) ÷ 2, (n - w) ÷ 2
+    out[i0 + 1:i0 + h, j0 + 1:j0 + w] .= img
+    return out
+end
+
+# Near-white pixels made transparent (with a soft edge), for illustrations on white
+function keywhite(img::AbstractMatrix{RGBAf}; threshold = 0.92)
+    return map(img) do p
+        w = min(p.r, p.g, p.b)                      # how white: the darkest channel
+        a = clamp((1 - w) / (1 - threshold), 0, 1)
+        RGBAf(p.r, p.g, p.b, p.alpha * a)
+    end
+end
+
+# An image ready to draw with `image!` over a square, turned so it is upright (`image!`
+# puts the first matrix index along x and the second along y, upwards):
+# - `fit = :pad` shrinks it to fit the square, whole; `:crop` fills the square with its
+#   central part (for a disc, :pad also shrinks it to fit inside the circle)
+# - `whitebackground = true` makes a white background transparent
+function markerimage(img::AbstractMatrix{RGBAf}, shape::Symbol; fit = :pad,
+                     whitebackground = false)
+    whitebackground && (img = keywhite(img))
+    if fit === :crop
+        sq = squarecrop(img)
+        shape === :circle && (sq = discmask(sq))
+    else
+        # whole image; inside a disc its corners must fit in the circle, so the canvas is
+        # as wide as the image's diagonal
+        h, w = size(img)
+        sq = padto(img, shape === :circle ? ceil(Int, hypot(h, w)) : max(h, w))
+        shape === :circle && (sq = discmask(sq))
+    end
     return rotr90(sq)
 end

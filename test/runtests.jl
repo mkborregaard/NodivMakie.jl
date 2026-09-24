@@ -276,9 +276,22 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test imgs["a"] === imgs["a"]                    # cached
         @test_throws KeyError imgs["c"]
         @test_throws ArgumentError SpeciesImages(joinpath(dir, "nope"))
-        m = NodivMakie.markerimage(imgs["a"], :circle)
+        m = NodivMakie.markerimage(imgs["a"], :circle; fit = :crop)
         @test size(m, 1) == size(m, 2)                   # cropped to a square
         @test m[1, 1].alpha == 0 && m[end ÷ 2, end ÷ 2].alpha == 1   # disc mask
+        # :pad keeps the whole image: every pixel of it is in the result, inside the disc
+        h, w = size(imgs["a"])
+        m = NodivMakie.markerimage(imgs["a"], :circle)
+        @test size(m, 1) == size(m, 2) == ceil(Int, hypot(h, w))
+        @test count(p -> p.alpha > 0.99, m) >= h * w - 2(h + w)
+        @test size(NodivMakie.markerimage(imgs["a"], :square)) == (max(h, w), max(h, w))
+        # white made transparent
+        onwhite = [i < 3 ? RGBAf(1, 1, 1, 1) : RGBAf(0.2, 0.3, 0.1, 1) for i in 1:6, j in 1:6]
+        k = NodivMakie.keywhite(onwhite)
+        @test all(p -> p.alpha == 0, k[1:2, :]) && all(p -> p.alpha == 1, k[3:end, :])
+        # links to missing files are skipped
+        symlink(joinpath(dir, "nothing_here.png"), joinpath(dir, "ghost.png"))
+        @test !haskey(SpeciesImages(dir), "ghost")
 
         # tip spans: every clade is a contiguous run of tips
         l = treelayout(tree)

@@ -181,8 +181,11 @@ On the workshop's bird tree (9852 species), the defaults give 26 images around t
 and 12 beside a dendrogram, covering 90–95% of species. `minclade = 1` makes every clade
 fill at least its own slot; that gives fewer images (19 and 8).
 
-Images are cropped to their central square, shown as discs (`shape = :square` for
-squares), reduced to thumbnails, and outlined. `showclades = true` marks the tips each
+Images are shown whole, shrunk to fit inside a disc (`shape = :square` for squares), reduced
+to thumbnails, and outlined. `fit = :crop` fills the disc with the image's central part
+instead, which suits photos. `whitebackground = true` makes a white background transparent,
+for illustrations drawn on white, such as the Birds of the World ones. Links to missing files
+are skipped, so a folder of links can point at images that are still downloading. `showclades = true` marks the tips each
 image stands for. A dendrogram's images go in a narrow axis beside the tree, linked in
 y, so they stay square however the tree axis is shaped.
 
