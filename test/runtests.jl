@@ -438,6 +438,16 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test all(c -> c.shown === nothing || haskey(rimgs, c.shown), ti.clades)
         @test count(p -> p isa Image, ti.plots) == count(c -> c.shown !== nothing, ti.clades)
         @test missingimages(ti) == [c.species for c in ti.clades if c.shown === nothing]
+        # hovering over an image names its species and clade
+        c1 = first(filter(c -> c.shown !== nothing, ti.clades))
+        ip = first(filter(p -> p isa Image, ti.plots))
+        @test ip.inspectable[]
+        @test ip.inspector_label[](ip, (1, 1), nothing) ==
+              "$(replace(c1.shown, "_" => " "))\nfor $(c1.clade) ($(length(c1.tips)) species)"
+        @test ip.inspector_hover[] isa Function
+        di = DataInspector(fig)
+        @test ip.inspector_hover[](di, ip, 1) == true         # runs against Makie's inspector
+        @test di.plot.text[] == ip.inspector_label[](ip, (1, 1), nothing)
         @test size(Makie.colorbuffer(fig)) != (0, 0)
         # a directory path works too, with options
         fig, ax, tp = treeplot(rt; treetype = :fan, showtips = false)
@@ -491,6 +501,14 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
             end
         end
         check("root"); check("n2"); check("n1"); check("n3")
+        # hover text follows the node shown
+        np.node[] = "root"
+        k1 = getnodename(tree, getchildren(tree, "root")[1])
+        @test plots[1].inspector_label[](plots[1], (1, 1), nothing) ==
+              "$(best(k1))\nwidest-ranging species of $k1"
+        np.node[] = "n2"
+        k1 = getnodename(tree, getchildren(tree, "n2")[1])
+        @test endswith(plots[1].inspector_label[](plots[1], (1, 1), nothing), "of $k1")
         @test best("n1") == "a"                          # b has no image
         vp = np.axes[3].scene.viewport[]
         (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data

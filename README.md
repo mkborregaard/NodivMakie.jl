@@ -142,7 +142,8 @@ highest metric.
 
 Hovering shows a label (a Makie `DataInspector`, on by default with `inspector = true`).
 On the tree it gives the node under the cursor, with its number of species and metric
-value; a branch gives the node it leads to. On the maps it gives the cell's value.
+value; a branch gives the node it leads to. On the maps it gives the cell's value. On a species image it gives the species and the
+clade it stands for.
 Outside the explorer, call `DataInspector(fig)` after `treeplot`; the tree's labels come
 from its `hoverlabel` attribute, a function of the node name. Like clicking, this needs
 an interactive backend.

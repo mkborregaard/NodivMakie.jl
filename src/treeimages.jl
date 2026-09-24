@@ -44,6 +44,22 @@ function outlinepoints!(pts, x, y, w, sx, sy, shape)
     push!(pts, Point2d(NaN, NaN))
 end
 
+# Hovering over an image (with a `DataInspector`) shows `text` (a string or an Observable
+# of one) as a plain tooltip. Makie's own image tooltip shows the pixel's colour and marks
+# the pixel; this shows only the text. The text is also the plot's `inspector_label`.
+function imagehover!(p, text)
+    p.inspector_label = (plot, idx, pos) -> string(to_value(text))
+    p.inspector_hover = function (inspector, plot, idx)
+        pos = Point2f(Makie.mouseposition_px(inspector.root))
+        Makie.update_tooltip_alignment!(inspector, pos; text = string(to_value(text)))
+        return true
+    end
+    p.inspectable = true
+    return p
+end
+
+displayname(sp) = replace(sp, "_" => " ")
+
 """
     treeimages!(ax, treeplot, images, rangesize; kwargs...) -> TreeImages
 
@@ -83,6 +99,9 @@ Keyword arguments:
 For a fan, the axis must keep a 1:1 aspect (`treeplot` and `nodeexplorer` set this when
 they create the axis). Turn tip labels off (`showtips = false`), as the images take
 their place.
+
+Hovering over an image (with a `DataInspector`) shows its species and the clade it
+stands for.
 """
 function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = automatic,
                      nimages = automatic, gap = 0.04, spacing = 0.1, shape = :circle,
@@ -99,6 +118,7 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
     nmissing > 0 &&
         @info "$nmissing of $(length(clades)) image positions have no image for any species of their clade; `missingimages` lists the species to find"
     centre(c) = (first(c.tips) + last(c.tips)) / 2
+    hovertext(c) = "$(displayname(c.shown))\nfor $(c.clade) ($(length(c.tips)) species)"
     shown = filter(c -> c.shown !== nothing, clades)
     s = geo.size
     plots = Any[]
@@ -108,8 +128,8 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         pts = [polar(geo.radius, fanangle(centre(c), T)) for c in shown]
         for (c, p) in zip(shown, pts)
             img = markerimage(images[c.shown], shape; fit, whitebackground, clip)
-            push!(plots, image!(ax, (p[1] - s / 2) .. (p[1] + s / 2),
-                                (p[2] - s / 2) .. (p[2] + s / 2), img; inspectable = false))
+            ip = image!(ax, (p[1] - s / 2) .. (p[1] + s / 2), (p[2] - s / 2) .. (p[2] + s / 2), img)
+            push!(plots, imagehover!(ip, hovertext(c)))
         end
         outline = Point2d[]
         for p in pts
@@ -150,8 +170,8 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         for c in shown
             img = markerimage(images[c.shown], shape; fit, whitebackground, clip)
             y = centre(c)
-            push!(plots, image!(imgax, 0.0 .. 1.0, (y - s / 2) .. (y + s / 2), img;
-                                inspectable = false))
+            ip = image!(imgax, 0.0 .. 1.0, (y - s / 2) .. (y + s / 2), img)
+            push!(plots, imagehover!(ip, hovertext(c)))
         end
         outline = Point2d[]
         for c in shown
@@ -188,7 +208,8 @@ The images follow the node shown, and a clade with no image gets none.
 - `shape`, `fit`, `whitebackground`, `clip`: as for [`treeimages!`](@ref)
 
 The images are drawn in the maps' screen space: they keep their place and size when the
-maps are zoomed or panned. Returns the two image plots.
+maps are zoomed or panned. Hovering over one (with a `DataInspector`) shows its species.
+Returns the two image plots.
 """
 function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, margin = 6,
                       shape = :circle, fit = :pad, whitebackground = false, clip = 0.0)
@@ -213,8 +234,10 @@ function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, ma
                   ax.scene.viewport, px)
         ys = lift((vp, s) -> (vp.widths[2] - margin - s) .. (vp.widths[2] - margin),
                   ax.scene.viewport, px)
-        p = image!(ax.scene, xs, ys, img; space = :pixel, inspectable = false,
-                   visible = lift(!isnothing, species))
+        p = image!(ax.scene, xs, ys, img; space = :pixel, visible = lift(!isnothing, species))
+        imagehover!(p, lift(species, np.node) do sp, n
+            sp === nothing ? "" : "$(displayname(sp))\nwidest-ranging species of $(child(n, k))"
+        end)
         translate!(p, 0, 0, 1)                   # above the map
         push!(plots, p)
     end
