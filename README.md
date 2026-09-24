@@ -113,15 +113,22 @@ exactly `richness(get_clade(...))`, but a node switch takes about 10 ms instead 
 
 ```julia
 using GLMakie
-div_g = divergent_nodes(res_g; by = :rms, threshold = 2)
-fig, ex = nodeexplorer(birds_g, tree, res_g; metric = :rms, nodes = div_g)
+fig, ex = nodeexplorer(birds_g, tree, res_g)
+# or another threshold, or every node with an SOS
+fig, ex = nodeexplorer(birds_g, tree, res_g; nodes = divergent_nodes(res_g; threshold = 2))
+fig, ex = nodeexplorer(birds_g, tree, res_g; nodes = :all)
 ```
 
-The fan tree marks `nodes`, coloured by `metric`, with the node panel beside it. Clicking
+The fan tree marks the divergent nodes, coloured by the divergence metric, with the node
+panel beside it. By default these are Nodiv's `divergent_nodes(res)` with its default
+threshold, and the metric is `:rms` for a `NodeMetrics` or `:gnd` for a `NodeAnalysis`.
+The node shown first is the most divergent one. Node markers have a thin dark outline
+(`strokewidth`, `strokecolor`), so high-metric markers stay visible on the red clade. Clicking
 a node marker, or the branch leading to a node, shows that node in the panel. In the
 tree, the selected node's first child clade is drawn in the high (blue) end of the SOS
-colour map and its second child clade in the low (red) end. The rest of the tree is
-greyed out (`contextcolor`). This follows Nodiv's SOS, which is the first child's
+colour map and its second child clade in the low (red) end. Both colours are taken a
+little in from the ends of the map, so they are lighter (`focusinset`, 0 for the end
+colours). The rest of the tree is greyed out (`contextcolor`). This follows Nodiv's SOS, which is the first child's
 richness against the null: blue cells on the SOS map are where the blue clade is
 over-represented, and red cells where the red clade is. The label above the tree gives
 the node's name and metric value.
