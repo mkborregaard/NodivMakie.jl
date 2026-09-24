@@ -104,23 +104,62 @@ function keywhite(img::AbstractMatrix{RGBAf}; threshold = 0.92)
     end
 end
 
+# The image centred on a transparent canvas just large enough for its visible content:
+# for `shape = :circle` the canvas is the circle around the content, so the content fills
+# the disc. The content is the pixels at least half opaque (faint ones, e.g. off-white
+# specks left after keying out a white background, are drawn but do not set the size);
+# for an image without transparency it is the whole image.
+#
+# `clip` is the share of the content allowed outside the disc: 0 keeps all of it (the
+# circle is centred on the content's bounding box or its centre of mass, whichever needs
+# the smaller circle); e.g. 0.02 lets the outermost 2% (a tail tip, the feet) be cut off
+# for a larger image, with the circle centred on the content's centre of mass.
+function fitcontent(img::AbstractMatrix{RGBAf}, shape::Symbol; margin = 0.03, clip = 0.0)
+    idx = findall(p -> p.alpha >= 0.5, img)
+    isempty(idx) && return padto(img, maximum(size(img)))
+    h, w = size(img)
+    if shape === :circle
+        (r1, r2), (c1, c2) = extrema(i[1] for i in idx), extrema(i[2] for i in idx)
+        centres = [((r1 + r2) / 2, (c1 + c2) / 2),
+                   (sum(i[1] for i in idx) / length(idx), sum(i[2] for i in idx) / length(idx))]
+        clip > 0 && (centres = centres[2:2])
+        best = (Inf, 0.0, 0.0)
+        for (ci, cj) in centres
+            d = sort!([hypot(i[1] - ci, i[2] - cj) for i in idx])
+            reach = d[clamp(ceil(Int, (1 - clip) * length(d)), 1, length(d))] + 1
+            reach < best[1] && (best = (reach, ci, cj))
+        end
+        reach, ci, cj = best
+        n = ceil(Int, 2reach * (1 + margin))
+        # place the image so the centre lands mid-canvas; parts outside the canvas are cut
+        out = fill(RGBAf(0, 0, 0, 0), n, n)
+        oi, oj = round(Int, (n + 1) / 2 - ci), round(Int, (n + 1) / 2 - cj)
+        for i in max(1, 1 - oi):min(h, n - oi), j in max(1, 1 - oj):min(w, n - oj)
+            out[i + oi, j + oj] = img[i, j]
+        end
+        return discmask(out)
+    end
+    (r1, r2), (c1, c2) = extrema(i[1] for i in idx), extrema(i[2] for i in idx)
+    sub = img[r1:r2, c1:c2]
+    return padto(sub, ceil(Int, maximum(size(sub)) * (1 + margin)))
+end
+
 # An image ready to draw with `image!` over a square, turned so it is upright (`image!`
 # puts the first matrix index along x and the second along y, upwards):
-# - `fit = :pad` shrinks it to fit the square, whole; `:crop` fills the square with its
-#   central part (for a disc, :pad also shrinks it to fit inside the circle)
-# - `whitebackground = true` makes a white background transparent
+# - `fit = :pad` shows the whole image, as large as its circle or square allows; with a
+#   transparent background only the visible content has to fit, so it fills the disc
+# - `fit = :crop` fills the circle or square with the image's central part
+# - `whitebackground = true` makes a white background transparent first
+# - `clip`: with `:pad` on a disc, the share of the content allowed to be cut off at the
+#   disc's edge for a larger image (see `fitcontent`)
 function markerimage(img::AbstractMatrix{RGBAf}, shape::Symbol; fit = :pad,
-                     whitebackground = false)
+                     whitebackground = false, clip = 0.0)
     whitebackground && (img = keywhite(img))
     if fit === :crop
         sq = squarecrop(img)
         shape === :circle && (sq = discmask(sq))
     else
-        # whole image; inside a disc its corners must fit in the circle, so the canvas is
-        # as wide as the image's diagonal
-        h, w = size(img)
-        sq = padto(img, shape === :circle ? ceil(Int, hypot(h, w)) : max(h, w))
-        shape === :circle && (sq = discmask(sq))
+        sq = fitcontent(img, shape; clip)
     end
     return rotr90(sq)
 end

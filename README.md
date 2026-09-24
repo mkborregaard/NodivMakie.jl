@@ -184,7 +184,10 @@ fill at least its own slot; that gives fewer images (19 and 8).
 Images are shown whole, shrunk to fit inside a disc (`shape = :square` for squares), reduced
 to thumbnails, and outlined. `fit = :crop` fills the disc with the image's central part
 instead, which suits photos. `whitebackground = true` makes a white background transparent,
-for illustrations drawn on white, such as the Birds of the World ones. Links to missing files
+for illustrations drawn on white, such as the Birds of the World ones; the image is then
+sized so the bird itself, not its white card, fills the disc. `clip = 0.02` enlarges it
+further by letting the outermost 2% of the bird (a tail tip, wingtips) be cut off at the
+disc's edge; the default 0 never cuts anything. Links to missing files
 are skipped, so a folder of links can point at images that are still downloading. `showclades = true` marks the tips each
 image stands for. A dendrogram's images go in a narrow axis beside the tree, linked in
 y, so they stay square however the tree axis is shaped.

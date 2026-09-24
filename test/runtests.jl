@@ -282,9 +282,24 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         # :pad keeps the whole image: every pixel of it is in the result, inside the disc
         h, w = size(imgs["a"])
         m = NodivMakie.markerimage(imgs["a"], :circle)
-        @test size(m, 1) == size(m, 2) == ceil(Int, hypot(h, w))
+        @test size(m, 1) == size(m, 2) >= hypot(h, w)
         @test count(p -> p.alpha > 0.99, m) >= h * w - 2(h + w)
-        @test size(NodivMakie.markerimage(imgs["a"], :square)) == (max(h, w), max(h, w))
+        @test size(NodivMakie.markerimage(imgs["a"], :square), 1) >= max(h, w)
+        # a bird on white: once the white is transparent, the bird itself fills the disc
+        bird = [(i - 30)^2 / 400 + (j - 20)^2 / 100 < 1 ? RGBAf(0.3, 0.2, 0.1, 1) : RGBAf(1, 1, 1, 1)
+                for i in 1:60, j in 1:40]                     # a 40 x 20 oval on a 60 x 40 white card
+        plain = NodivMakie.markerimage(bird, :circle)
+        filled = NodivMakie.markerimage(bird, :circle; whitebackground = true)
+        @test size(filled, 1) < size(plain, 1) / 1.5          # the bird is drawn much larger
+        @test count(p -> p.alpha > 0.99, filled) >= count(p -> p.r < 0.5, bird) - 10   # none clipped
+        @test size(filled, 1) <= ceil(Int, 42 * 1.03) + 1     # just around the 40-pixel oval
+        # clip: a larger image, with only a little of the subject cut off
+        clipped = NodivMakie.markerimage(bird, :circle; whitebackground = true, clip = 0.05)
+        @test size(clipped, 1) < size(filled, 1)
+        @test count(p -> p.alpha > 0.99, clipped) >= 0.9 * count(p -> p.r < 0.5, bird)
+        # an off-white speck at the card's edge (as in JPEG illustrations) does not count
+        speck = copy(bird); speck[1, 1] = RGBAf(0.97, 0.97, 0.97, 1)
+        @test size(NodivMakie.markerimage(speck, :circle; whitebackground = true)) == size(filled)
         # white made transparent
         onwhite = [i < 3 ? RGBAf(1, 1, 1, 1) : RGBAf(0.2, 0.3, 0.1, 1) for i in 1:6, j in 1:6]
         k = NodivMakie.keywhite(onwhite)

@@ -69,7 +69,9 @@ Keyword arguments:
   circle or square with the image's central part (better for photos, but may cut off
   parts of an illustration)
 - `whitebackground = false`: make a white background transparent, for illustrations
-  drawn on white
+  drawn on white. The image is then sized so the subject itself fills the disc.
+- `clip = 0`: the share of the subject that may be cut off at the disc's edge for a larger
+  image, e.g. 0.02 (a tail tip or the feet). 0 never cuts anything.
 - `strokecolor = :gray40`, `strokewidth = 1`: the outline of each image (`strokewidth = 0`
   for none)
 - `showclades = false`: draw a thin line along the tips each image stands for, in
@@ -83,7 +85,7 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
                      nimages = automatic, gap = 0.04, spacing = 0.1, shape = :circle,
                      strokecolor = :gray40, strokewidth = 1, showclades = false,
                      cladecolor = :gray50, minclade = 0.5, fit = :pad,
-                     whitebackground = false)
+                     whitebackground = false, clip = 0.0)
     shape in (:circle, :square) || throw(ArgumentError("`shape` must be :circle or :square"))
     images isa AbstractString && (images = SpeciesImages(images))
     l, tt = tp.tree_layout[], tp.treetype[]
@@ -102,7 +104,7 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         T = ntips(l)
         pts = [polar(geo.radius, fanangle(centre(c), T)) for c in shown]
         for (c, p) in zip(shown, pts)
-            img = markerimage(images[c.shown], shape; fit, whitebackground)
+            img = markerimage(images[c.shown], shape; fit, whitebackground, clip)
             push!(plots, image!(ax, (p[1] - s / 2) .. (p[1] + s / 2),
                                 (p[2] - s / 2) .. (p[2] + s / 2), img; inspectable = false))
         end
@@ -140,7 +142,7 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
                               ax.scene.viewport, ax.finallimits)
         on(pxy -> (imgax.width = max(1.0, s * pxy * (1 + g))), pixels_per_tip; update = true)
         for c in shown
-            img = markerimage(images[c.shown], shape; fit, whitebackground)
+            img = markerimage(images[c.shown], shape; fit, whitebackground, clip)
             y = centre(c)
             push!(plots, image!(imgax, 0.0 .. 1.0, (y - s / 2) .. (y + s / 2), img;
                                 inspectable = false))
