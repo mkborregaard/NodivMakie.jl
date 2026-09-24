@@ -143,6 +143,49 @@ The building blocks can be used on their own:
 - `focuscolors(tree, layout, node, sos_colormap, contextcolor)` gives the per-branch
   colours used for the selected node.
 
+## Species images: `treeimages!`
+
+Species images drawn as a ring around a fan tree, or as a column right of a dendrogram.
+No images come with the package, as they are often copyrighted. You supply a directory
+of image files named by species, e.g. `Carduelis_hornemanni.jpg`. The name matching
+ignores case and treats spaces, hyphens and underscores alike. PNG and JPEG are read.
+
+```julia
+fig, ax, tp = treeplot(tree; treetype = :fan, showtips = false)
+ti = treeimages!(ax, tp, "path/to/images", birds_g)   # range sizes from the assemblage
+missingimages(ti)            # species to find images for, one per empty position
+
+# in the explorer
+fig, ex = nodeexplorer(birds_g, tree, res_g; images = "path/to/images")
+```
+
+Which species are shown:
+
+1. **How many.** The image size sets how many fit (`imagesize`, as a fraction of the
+   tree's radius for a fan, default 0.15; or pass `nimages`). For a fan, that is the
+   number of discs that fit around a ring just outside the tips with a little space
+   between them. That many equal slots divide the tips.
+2. **Which clades.** Each image stands for a monophyletic clade and sits at its centre.
+   The clades are disjoint, so no species is in two images. Each is at least `minclade`
+   of a slot wide (default 0.5), and their centres are at least a slot apart, so images
+   never overlap. Among the choices meeting these rules, the one with the most images is
+   taken, and then the one covering the most species. So a clade too small for its own
+   image joins its sister in their parent's image where that costs no image, and a clade
+   wider than a slot leaves gaps beside its image. The choice is exact (see
+   `selectclades`).
+3. **Which species.** Each clade is shown by its species with the largest range size
+   (occupied cells in the assemblage, or a Dict you pass) that has an image. Where none of
+   a clade's species has an image, the position is left empty.
+
+On the workshop's bird tree (9852 species), the defaults give 26 images around the fan
+and 12 beside a dendrogram, covering 90–95% of species. `minclade = 1` makes every clade
+fill at least its own slot; that gives fewer images (19 and 8).
+
+Images are cropped to their central square, shown as discs (`shape = :square` for
+squares), reduced to thumbnails, and outlined. `showclades = true` marks the tips each
+image stands for. A dendrogram's images go in a narrow axis beside the tree, linked in
+y, so they stay square however the tree axis is shaped.
+
 ## Plot geometry
 
 A `treeplot` keeps its computed geometry on the plot object:

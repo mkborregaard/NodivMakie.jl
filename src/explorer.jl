@@ -78,7 +78,8 @@ end
     NodeExplorer
 
 The parts of a [`nodeexplorer`](@ref): `figure`, the tree `axis` and `treeplot`, the
-[`NodePanel`](@ref) `panel`, and `status`, the text of the label above the tree.
+[`NodePanel`](@ref) `panel`, `status`, the text of the label above the tree, and
+`images`, the species images around the tree ([`TreeImages`](@ref)) or `nothing`.
 """
 struct NodeExplorer
     figure::Figure
@@ -86,6 +87,7 @@ struct NodeExplorer
     treeplot::TreePlot
     panel::NodePanel
     status::Observable{String}
+    images::Union{TreeImages, Nothing}
 end
 
 metricvalues(res, metric::Symbol) = getfield(res, metric)
@@ -129,6 +131,10 @@ Keyword arguments:
 - `contextcolor = :gray75`: the branches outside the two clades of the node shown
 - `focusinset = 0.15`: how far in from the ends of the SOS colour map the two clade
   colours are taken; 0 gives the end colours, larger is lighter
+- `images = nothing`: species images to draw around the tree, as a
+  [`SpeciesImages`](@ref) or a directory path; see [`treeimages!`](@ref). Range sizes
+  are taken from `assemblage` unless `imageoptions` has a `rangesize`.
+- `imageoptions = (;)`: keyword arguments for `treeimages!`
 - `panel = (;)`: keyword arguments for `nodepanel!`
 - `figure = (;)`: attributes for the `Figure`
 - `pickfn = pick`: the picking function (replaced in the tests, where CairoMakie cannot pick)
@@ -140,8 +146,9 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
                       nodes = automatic, node = automatic, treetype = :fan,
                       showtips = false, colormap = :YlOrRd, colorrange = automatic,
                       markersize = 14, strokewidth = 1, strokecolor = :gray20,
-                      contextcolor = :gray75, focusinset = 0.15, treekw = (;),
-                      panel = (;), figure = (;), pickfn = pick)
+                      contextcolor = :gray75, focusinset = 0.15, images = nothing,
+                      imageoptions = (;), treekw = (;), panel = (;), figure = (;),
+                      pickfn = pick)
     sos = sosvalues(res)
     vals = metricvalues(res, metric)
     nodes = nodes === automatic ? defaultnodes(res, metric) :
@@ -174,6 +181,12 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
                    strokewidth, strokecolor, colormap, colorrange,
                    merge(treekw, (; branchcolor = focus(node)))...)
     on(n -> (tp.branchcolor = focus(n)), np.node)
+    ti = nothing
+    if images !== nothing
+        rangesize = get(imageoptions, :rangesize, assemblage)
+        opts = Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})
+        ti = treeimages!(ax, tp, images, rangesize; opts...)
+    end
     Colorbar(treegrid[3, 1], tp; vertical = false, flipaxis = false, label,
              tellheight = true, width = Relative(0.6))
 
@@ -187,5 +200,5 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
             status[] = "$n: no SOS (a tip, or not analysed)"
         end
     end
-    return fig, NodeExplorer(fig, ax, tp, np, status)
+    return fig, NodeExplorer(fig, ax, tp, np, status, ti)
 end
