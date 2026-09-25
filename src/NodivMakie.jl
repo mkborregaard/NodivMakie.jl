@@ -12,6 +12,7 @@ using SparseArrays: SparseMatrixCSC, sparse, rowvals, nonzeros, nzrange
 using EcoBase: richness, places, getcoords, coordinates, xrange, yrange, occupancy
 import FileIO, ImageIO
 using Makie: ncols, insertcols!
+import MultivariateStats
 
 include("layout.jl")
 include("treeplot.jl")
@@ -20,6 +21,7 @@ include("nodepanel.jl")
 include("images.jl")
 include("imageclades.jl")
 include("treeimages.jl")
+include("ordination.jl")
 include("explorer.jl")
 
 export TreeLayout, treelayout
@@ -29,5 +31,6 @@ export nodepanel, nodepanel!, NodePanel, hassos, cladecolors
 export nodeexplorer, NodeExplorer, nodeat, onnodeclick, focuscolors
 export SpeciesImages, speciesname, treeimages!, TreeImages, missingimages, cladeimages!
 export imagegeometry, imageclades, selectclades, CladeImage
+export sosordination, SOSOrdination, ordinationplot, ordinationplot!, OrdinationPlot
 
 end

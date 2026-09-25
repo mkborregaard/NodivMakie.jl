@@ -106,7 +106,8 @@ the first child in the high (blue) end of the SOS colour map, the second in the 
 end (`titlecolors = false` to turn this off).
 
 `nodepanel!(fig[1, 2], ...)` puts the panel into any layout position. `np.node` is an
-`Observable{String}`, so anything can drive it.
+`Observable{String}`, so anything can drive it. `clademap = false` leaves out the clade
+map and keeps its cell (`np.layout[1, 1]`) free; `np.axes[1]` is then `nothing`.
 
 For speed, clade richness uses a sites × species index built once per panel. It gives
 exactly `richness(get_clade(...))`, but a node switch takes about 10 ms instead of about
@@ -123,11 +124,14 @@ fig, ex = nodeexplorer(birds_g, tree, res_g; nodes = :all)
 ```
 
 The fan tree marks the divergent nodes, coloured by the divergence metric, with the node
-panel beside it. By default these are Nodiv's `divergent_nodes(res)` with its default
+panel beside it. In the panel, the map of the node's own clade is replaced by an
+ordination of the marked nodes by the similarity of their SOS maps (see
+[below](#ordination-by-sos-similarity-sosordination)). By default these are Nodiv's `divergent_nodes(res)` with its default
 threshold, and the metric is `:rms` for a `NodeMetrics` or `:gnd` for a `NodeAnalysis`.
 The node shown first is the most divergent one. Node markers have a thin dark outline
 (`strokewidth`, `strokecolor`), so high-metric markers stay visible on the red clade. Clicking
-a node marker, or the branch leading to a node, shows that node in the panel. In the
+a node marker, or the branch leading to a node, shows that node in the panel, and so does
+clicking a point in the ordination; the node shown has a ring there. In the
 tree, the selected node's first child clade is drawn in the high (blue) end of the SOS
 colour map and its second child clade in the low (red) end. Both colours are taken a
 little in from the ends of the map, so they are lighter (`focusinset`, 0 for the end
@@ -140,20 +144,47 @@ CairoMakie you get the static figure for the first node, which is the one with t
 highest metric.
 
 Hovering shows a label (a Makie `DataInspector`, on by default with `inspector = true`).
-On the tree it gives the node under the cursor, with its number of species and metric
-value; a branch gives the node it leads to. On the maps it gives the cell's value. On a bird around the tree it gives the species and
+On the tree and the ordination it gives the node under the cursor, with its number of
+species and metric value; a branch gives the node it leads to. On the maps it gives the cell's value. On a bird around the tree it gives the species and
 the clade it stands for, and on a bird in a map corner the species. Only the bird itself
 counts: over its transparent surroundings, whatever is underneath is inspected.
 Outside the explorer, call `DataInspector(fig)` after `treeplot`; the tree's labels come
 from its `hoverlabel` attribute, a function of the node name. Like clicking, this needs
 an interactive backend.
 
+The ordination is computed from the cached SOS with `sos_distances`' default minimum
+overlap of 3 cells. Set it for the space with `ordinationkw = (; minoverlap = 8)`. With
+fewer than three marked nodes, or `ordination = false`, the panel shows the clade map.
+
 The building blocks can be used on their own:
-- `onnodeclick(f, ax, treeplot)` calls `f(nodename)` on a click.
-- `nodeat(treeplot, plot, index)` turns a `pick` result into a node name.
+- `onnodeclick(f, ax, plot)` calls `f(nodename)` on a click on a tree or ordination.
+- `nodeat(plot, pickedplot, index)` turns a `pick` result into a node name.
 - `hassos(tree, sos, node)` tells whether a node can be shown in a panel.
 - `focuscolors(tree, layout, node, sos_colormap, contextcolor)` gives the per-branch
   colours used for the selected node.
+
+## Ordination by SOS similarity: `sosordination`
+
+Classical MDS of nodes by the similarity of their SOS maps, on Nodiv's `sos_distances`
+(1 − |r| over the cells both nodes occupy). It uses the cached SOS in `res`.
+
+```julia
+o = sosordination(res_g, divergent_nodes(res_g); minoverlap = 8)
+fig, ax, p = ordinationplot(o; nodecolor = res_g.rms, nodelabels = true)
+Colorbar(fig[1, 2], p)
+o.eigenvalues                                  # of the axes, largest first
+```
+
+Keyword arguments other than `maxoutdim` (the number of axes, default 2) go to
+`sos_distances`: `minoverlap`, `method = :pearson | :spearman`, `overlapweight`. Set
+`minoverlap` for each space, as the geographic and environmental spaces have very
+different numbers of cells. With more axes (`maxoutdim = 10`) the eigenvalues show
+whether two axes capture the structure. When the nodes are mostly unrelated in SOS
+pattern, all distances are near 1 and the points form a ring. That is the finding, not
+a failure of the method.
+
+`ordinationplot` takes per-node `nodecolor` and `nodelabels` like `treeplot`, and
+`selected` rings a node. `nodeat` and `onnodeclick` work on it as on a tree.
 
 ## Species images: `treeimages!`
 

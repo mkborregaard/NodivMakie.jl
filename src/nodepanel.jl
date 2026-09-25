@@ -11,14 +11,15 @@ another node.
 
 - `node`: `Observable{String}` with the node shown
 - `layout`: the `GridLayout` holding the panel
-- `axes`: the four map axes (clade, SOS, child 1, child 2), with linked limits
+- `axes`: the four map axes (clade, SOS, child 1, child 2), with linked limits. With
+  `clademap = false` the first is `nothing`, so the others keep their positions.
 - `maps`: the four `SiteMap` plots, in the same order
 - `colorbars`: their colour bars (empty if `colorbars = false`)
 """
 struct NodePanel
     node::Observable{String}
     layout::GridLayout
-    axes::Vector{Axis}
+    axes::Vector{Union{Axis, Nothing}}
     maps::Vector{Any}
     colorbars::Vector{Colorbar}
 end
@@ -98,6 +99,8 @@ Keyword arguments:
 - `richness_colormap = Reverse(:Spectral)`, `sos_colormap = :RdYlBu`,
   `sos_colorrange = (-8, 8)`: the colours of `plot_node`
 - `colorbars = true`: a colour bar beside each map
+- `clademap = true`: draw the map of the node's own clade (top left). With `false` that
+  cell of `panel.layout` is left free, as the [`nodeexplorer`](@ref) does for its ordination.
 - `titlecolors = true`: colour the child clades' map titles by [`cladecolors`](@ref), as
   the explorer colours their branches (`colorinset` as its `focusinset`)
 - `axis = (;)`: attributes for all four axes
@@ -113,7 +116,7 @@ function nodepanel!(gp, assemblage, tree, node, res;
                     richness_colormap = Reverse(:Spectral), sos_colormap = :RdYlBu,
                     sos_colorrange = (-8, 8), colorbars = true, axis = (;),
                     images = nothing, imageoptions = (;), titlecolors = true,
-                    colorinset = 0.15)
+                    colorinset = 0.15, clademap = true)
     sos = sosvalues(res)
     node = node isa Observable ? node : Observable(String(node))
     hassos(tree, sos, node[]) ||
@@ -132,8 +135,13 @@ function nodepanel!(gp, assemblage, tree, node, res;
 
     gl = GridLayout(gp)
     locs = sitelocations(assemblage)
-    axes, maps, cbs = Axis[], Any[], Colorbar[]
+    axes, maps, cbs = Union{Axis, Nothing}[], Any[], Colorbar[]
     for (i, (row, col)) in enumerate(((1, 1), (1, 2), (2, 1), (2, 2)))
+        if i == 1 && !clademap
+            push!(axes, nothing)
+            push!(maps, nothing)
+            continue
+        end
         ax = Axis(gl[row, 2col - 1]; title = lift(d -> d.titles[i], data),
                   autolimitaspect = 1, xgridvisible = false, ygridvisible = false, axis...)
         cm = i == 2 ? (colormap = sos_colormap, colorrange = sos_colorrange) :
@@ -143,7 +151,7 @@ function nodepanel!(gp, assemblage, tree, node, res;
         push!(maps, m)
         colorbars && push!(cbs, Colorbar(gl[row, 2col], m; width = 10))
     end
-    linkaxes!(axes...)
+    linkaxes!(filter(!isnothing, axes)...)
     if titlecolors
         axes[3].titlecolor, axes[4].titlecolor = cladecolors(sos_colormap; inset = colorinset)
     end
