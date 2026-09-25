@@ -91,6 +91,18 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
                                   "n1" in c.text[], p.plots))
         # `true` names the shown nodes; the tips are named by the tip labels already
         @test sort(labels.text[]) == ["n1", "n2", "n3", "root"]
+
+        # labels in boxes, at the nodes of a Dict
+        fig, ax, p = treeplot(tree; treetype = :fan, showtips = false,
+                              nodelabels = Dict("n1" => "1", "n3" => "3"),
+                              nodelabelbackground = (:lightyellow, 0.85),
+                              nodelabelalign = (:center, :center), nodelabeloffset = (0, 0))
+        boxes = only(child(p, Makie.TextLabel))
+        l = p.tree_layout[]
+        @test Dict(zip(boxes.text[], boxes[1][])) ==
+              Dict("1" => p.node_points[][l.index["n1"]], "3" => p.node_points[][l.index["n3"]])
+        @test length(child(p, Makie.Text)) == 1                      # only the tip names are plain text
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
     end
 
     @testset "attributes update" begin
@@ -201,6 +213,16 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test sosordination(thin, nodes; minoverlap = 3).distances[4, 1:3] == ones(3)
         @test sosordination(thin, nodes; minoverlap = 2).distances[4, 3] < 1
         @test_throws ArgumentError sosordination(res2, ["n1", "n2"])
+        # from a precomputed distance matrix
+        @test sosordination(o.distances, nodes).coords == o.coords
+        @test_throws ArgumentError sosordination(o.distances, nodes[1:3])
+        @test_throws ArgumentError sosordination(o.distances[1:2, 1:2], nodes[1:2])
+        # the eigenvalues, from an ordination with more axes
+        o3 = sosordination(o.distances, nodes; maxoutdim = 3)
+        fig, ax, p = eigenvalueplot(o3)
+        @test p isa EigenvaluePlot && ax.xlabel[] == "MDS axis"
+        @test last.(p.bars[]) == o3.eigenvalues
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
 
         fig, ax, p = ordinationplot(o; nodecolor = res2.gnd, nodelabels = true, selected = "n2")
         @test p isa OrdinationPlot

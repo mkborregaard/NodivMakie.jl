@@ -2,6 +2,7 @@
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Nodiv = "6a6d1b09-ff88-4671-a19a-d516f2482c79"
 NodivMakie = "6e5bb3f3-9e99-4721-b096-016fa2d2f487"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SpatialEcology = "348f2d5d-71a3-5ad4-b565-8af070f99681"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 

@@ -68,6 +68,13 @@ Which nodes get them is controlled by `shownodes`.
     nodelabelalign = (:right, :bottom)
     "Node label offset in pixels."
     nodelabeloffset = (-3, 1)
+    """
+    A box behind each node label, so it reads over the branches: `nothing` for plain text,
+    or the box colour. Fixed when the plot is created.
+    """
+    nodelabelbackground = nothing
+    "Outline colour of the node label boxes."
+    nodelabelstrokecolor = :gray40
 
     "Draw tip names."
     showtips = true
@@ -278,9 +285,17 @@ function Makie.plot!(p::TreePlot)
         end
     end
 
-    text!(p, p.label_points; text = p.label_texts, fontsize = p.nodelabelsize,
-          color = p.nodelabelcolor, align = p.nodelabelalign, offset = p.nodelabeloffset,
-          inspectable = false)
+    if p.nodelabelbackground[] === nothing
+        text!(p, p.label_points; text = p.label_texts, fontsize = p.nodelabelsize,
+              color = p.nodelabelcolor, align = p.nodelabelalign, offset = p.nodelabeloffset,
+              inspectable = false)
+    else
+        textlabel!(p, p.label_points; text = p.label_texts, fontsize = p.nodelabelsize,
+                   text_color = p.nodelabelcolor, text_align = p.nodelabelalign,
+                   offset = p.nodelabeloffset, background_color = p.nodelabelbackground,
+                   strokecolor = p.nodelabelstrokecolor, strokewidth = 0.5, padding = 2,
+                   inspectable = false)
+    end
 
     text!(p, p.tip_points; text = p.tip_texts, rotation = p.tip_rotations,
           align = p.tip_aligns, offset = p.tip_offsets, fontsize = p.tipfontsize,

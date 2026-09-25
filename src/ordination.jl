@@ -23,6 +23,7 @@ sosdistances(sos::AbstractDict, nodes; kwargs...) = sos_distances([sos[n] for n 
 
 """
     sosordination(res, nodes; maxoutdim = 2, kwargs...)
+    sosordination(D::AbstractMatrix, nodes; maxoutdim = 2)
 
 Classical (metric) MDS of `nodes` by the similarity of their SOS maps. The distances are
 Nodiv's `sos_distances(res, nodes; kwargs...)`: 1 - |r| between two nodes' SOS over the
@@ -30,22 +31,36 @@ cells both occupy, with pairs sharing fewer than `minoverlap` cells (default 3) 
 distance 1. Set `minoverlap` for each space: a floor of about 8 cells suits a
 geographic grid of thousands of cells, and a smaller one an environmental space of tens of
 bins. `res` is a `NodeAnalysis`/`NodeMetrics` or a Dict of node name => SOS vector;
-nothing is recomputed.
+nothing is recomputed. Or pass the distance matrix `D` of `nodes` itself, e.g. one
+computed once with `sos_distances` and shared with other analyses of the same nodes.
 
 `maxoutdim` is the number of axes (at most `length(nodes) - 1`). The `eigenvalues` of an
 ordination with more axes (say 10) tell whether two show the structure. Where the nodes
 are mostly unrelated in SOS pattern, the distances are all near 1 and the points form a
 ring. That is the finding, not a failure of the method.
 
-Returns an [`SOSOrdination`](@ref); plot it with [`ordinationplot`](@ref).
+Returns an [`SOSOrdination`](@ref); plot it with [`ordinationplot`](@ref), and its
+eigenvalues with [`eigenvalueplot`](@ref).
 """
 function sosordination(res, nodes; maxoutdim = 2, kwargs...)
+    nodes = checkordnodes(nodes)
+    return sosordination(sosdistances(res, nodes; kwargs...), nodes; maxoutdim)
+end
+
+function sosordination(D::AbstractMatrix{<:Real}, nodes; maxoutdim = 2)
+    nodes = checkordnodes(nodes)
+    size(D) == (length(nodes), length(nodes)) ||
+        throw(ArgumentError("The distance matrix must be $(length(nodes)) x $(length(nodes)), one row and column per node; got $(join(size(D), " x "))"))
+    D = Matrix{Float64}(D)
+    M = MultivariateStats.fit(MultivariateStats.MDS, D; distances = true, maxoutdim)
+    return SOSOrdination(nodes, MultivariateStats.predict(M), MultivariateStats.eigvals(M), D)
+end
+
+function checkordnodes(nodes)
     nodes = String[n for n in nodes]
     length(nodes) >= 3 ||
         throw(ArgumentError("An ordination needs at least 3 nodes; got $(length(nodes))"))
-    D = sosdistances(res, nodes; kwargs...)
-    M = MultivariateStats.fit(MultivariateStats.MDS, D; distances = true, maxoutdim)
-    return SOSOrdination(nodes, MultivariateStats.predict(M), MultivariateStats.eigvals(M), D)
+    return nodes
 end
 
 """
@@ -141,6 +156,31 @@ Makie.preferred_axis_attributes(::Type{Axis}, ::OrdinationPlot) =
 
 # `Colorbar(fig[1, 2], p)`: the colours of the points
 Makie.extract_colormap(p::OrdinationPlot) = Makie.extract_colormap(p.plots[1])
+
+"""
+    eigenvalueplot(ordination; kwargs...)
+
+The eigenvalues of the axes of an [`SOSOrdination`](@ref) as bars, largest first. They
+tell whether the first two axes, the ones [`ordinationplot`](@ref) shows, carry the
+structure: if axes 3 and up are about as large, the 2-D picture is a projection. Fit the
+ordination with more than two axes for this, e.g. `sosordination(D, nodes; maxoutdim = 10)`.
+"""
+@recipe EigenvaluePlot (ordination,) begin
+    "Bar colour."
+    color = :gray40
+    Makie.mixin_generic_plot_attributes()...
+end
+
+Makie.convert_arguments(::Type{<:EigenvaluePlot}, o::SOSOrdination) = (o,)
+
+function Makie.plot!(p::EigenvaluePlot)
+    map!(o -> Point2d.(eachindex(o.eigenvalues), o.eigenvalues), p, :ordination, :bars)
+    barplot!(p, p.bars; color = p.color)
+    return p
+end
+
+Makie.preferred_axis_attributes(::Type{Axis}, ::EigenvaluePlot) =
+    (; xlabel = "MDS axis", ylabel = "eigenvalue", xgridvisible = false)
 
 """
     nodeat(ordinationplot, plot, index)

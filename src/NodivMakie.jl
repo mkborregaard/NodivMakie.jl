@@ -32,5 +32,6 @@ export nodeexplorer, NodeExplorer, nodeat, onnodeclick, focuscolors
 export SpeciesImages, speciesname, treeimages!, TreeImages, missingimages, cladeimages!
 export imagegeometry, imageclades, selectclades, CladeImage
 export sosordination, SOSOrdination, ordinationplot, ordinationplot!, OrdinationPlot
+export eigenvalueplot, eigenvalueplot!, EigenvaluePlot
 
 end
