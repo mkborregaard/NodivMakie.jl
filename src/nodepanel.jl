@@ -15,6 +15,7 @@ another node.
   `clademap = false` the first is `nothing`, so the others keep their positions.
 - `maps`: the four `SiteMap` plots, in the same order
 - `colorbars`: their colour bars (empty if `colorbars = false`)
+- `sos`: the SOS vectors the panel shows, a Dict of node name => SOS vector
 """
 struct NodePanel
     node::Observable{String}
@@ -22,6 +23,7 @@ struct NodePanel
     axes::Vector{Union{Axis, Nothing}}
     maps::Vector{Any}
     colorbars::Vector{Colorbar}
+    sos::AbstractDict
 end
 
 sosvalues(res::Nodiv.AbstractNodeResult) = res.sos
@@ -49,42 +51,18 @@ two children.
 hassos(tree, sos, node) = haskey(sos, node) && hasnode(tree, node) &&
                           length(getchildren(tree, node)) >= 2
 
-# Clade richness for interactive use. `richness(get_clade(...))` on a species view of a
-# large assemblage takes ~0.4 s (birds, 18k cells), too slow for clicking. Here the
-# presence matrix is stored once as sites x species, so a clade's richness is a sum over
-# its species' columns. Same result as `richness(get_clade(assemblage, tree, node))`.
-struct CladeRichness
-    presence::SparseMatrixCSC{Bool, Int}   # sites x species
-    index::Dict{String, Int}               # species name => column
-end
-
-function CladeRichness(assemblage)
-    occ = sparse(EcoBase.occurrences(assemblage) .> 0)            # species x sites
-    names = String.(EcoBase.thingnames(assemblage))
-    return CladeRichness(permutedims(occ), Dict(n => i for (i, n) in enumerate(names)))
-end
-
-function (cr::CladeRichness)(tree, node)
-    cols = [cr.index[sp] for sp in nodespecies(tree, node) if haskey(cr.index, sp)]
-    r = zeros(Int, size(cr.presence, 1))
-    rows, vals = rowvals(cr.presence), nonzeros(cr.presence)
-    for j in cols, k in nzrange(cr.presence, j)
-        vals[k] && (r[rows[k]] += 1)
-    end
-    return r
-end
-
 function occupied(r)
     v = Float64.(r)
     v[v .== 0] .= NaN
     return v
 end
 
-# The four maps' values and titles for one node
-function nodepaneldata(cr::CladeRichness, tree, sos, node)
+# The four maps' values and titles for one node. `richness_of` is Nodiv's
+# `clade_richness(assemblage, tree)`, fast enough for clicking through nodes.
+function nodepaneldata(richness_of, tree, sos, node)
     ch1, ch2 = [getnodename(tree, c) for c in getchildren(tree, node)[1:2]]
-    return (values = [occupied(cr(tree, node)), sitevalues(sos[node]),
-                      occupied(cr(tree, ch1)), occupied(cr(tree, ch2))],
+    return (values = [occupied(richness_of(node)), sitevalues(sos[node]),
+                      occupied(richness_of(ch1)), occupied(richness_of(ch2))],
             titles = [node, "SOS", ch1, ch2])
 end
 
@@ -93,7 +71,7 @@ end
 
 Draw the node panel for `node` (a node name or an `Observable` of one) into a figure
 position. `res` is a `NodeAnalysis`/`NodeMetrics` or a Dict of node name => SOS
-vector, e.g. the cached `res_e`/`res_g`; nothing is recomputed.
+vector, e.g. a cached result; nothing is recomputed.
 
 Keyword arguments:
 - `richness_colormap = Reverse(:Spectral)`, `sos_colormap = :RdYlBu`,
@@ -123,11 +101,11 @@ function nodepanel!(gp, assemblage, tree, node, res;
         throw(ArgumentError("Node $(node[]) has no SOS in the result or fewer than two children"))
 
     # Only valid nodes reach the maps; an invalid one leaves the panel as it was
-    cr = CladeRichness(assemblage)
-    data = Observable(nodepaneldata(cr, tree, sos, node[]))
+    richness_of = clade_richness(assemblage, tree)
+    data = Observable(nodepaneldata(richness_of, tree, sos, node[]))
     on(node) do n
         if hassos(tree, sos, n)
-            data[] = nodepaneldata(cr, tree, sos, n)
+            data[] = nodepaneldata(richness_of, tree, sos, n)
         else
             @warn "Node $n has no SOS in the result or fewer than two children; not shown"
         end
@@ -155,7 +133,7 @@ function nodepanel!(gp, assemblage, tree, node, res;
     if titlecolors
         axes[3].titlecolor, axes[4].titlecolor = cladecolors(sos_colormap; inset = colorinset)
     end
-    np = NodePanel(node, gl, axes, maps, cbs)
+    np = NodePanel(node, gl, axes, maps, cbs, sos)
     if images !== nothing
         rangesize = get(imageoptions, :rangesize, assemblage)
         cladeimages!(np, tree, images, rangesize;

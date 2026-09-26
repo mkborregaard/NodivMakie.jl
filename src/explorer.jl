@@ -198,11 +198,11 @@ struct NodeExplorer
     ordinationaxis::Union{Axis, Nothing}
 end
 
-metricvalues(res, metric::Symbol) = getfield(res, metric)
+metricvalues(res, metric::Symbol) = node_scores(res, metric)
 metricvalues(res, metric::AbstractDict) = metric
 
 # The metric shown by default: Nodiv's default divergence score for the result type
-defaultmetric(::Nodiv.NodeMetrics) = :rms
+defaultmetric(res::Nodiv.AbstractNodeResult) = default_score(res)
 defaultmetric(res) = :gnd
 
 # The nodes marked by default: Nodiv's `divergent_nodes`, with its default threshold,
@@ -224,7 +224,7 @@ below the node shown are drawn in colours from the two ends of the SOS colour ma
 `NodeMetrics`/`NodeAnalysis`.
 
 In the panel, the top-left cell shows an ordination of the marked nodes by the
-similarity of their SOS maps ([`sosordination`](@ref)) instead of the map of the node's
+similarity of their SOS maps (Nodiv's `sos_ordination`) instead of the map of the node's
 own clade. Its points are coloured like the tree's markers. Clicking a point shows that
 node, just like clicking it on the tree, and the node shown has a ring. With fewer than
 three marked nodes, or `ordination = false`, the cell shows the clade map instead.
@@ -252,7 +252,7 @@ Keyword arguments:
 - `imageoptions = (;)`: keyword arguments for `treeimages!`; `shape`, `fit`,
   `whitebackground` and `clip` apply to the map images too
 - `ordination = true`: the ordination of the marked nodes in place of the clade map
-- `ordinationkw = (;)`: keyword arguments for [`sosordination`](@ref), e.g. the
+- `ordinationkw = (;)`: keyword arguments for Nodiv's `sos_ordination`, e.g. the
   `minoverlap` of `sos_distances` (default 3), which should be set for each space
 - `panel = (;)`: keyword arguments for `nodepanel!`
 - `figure = (;)`: attributes for the `Figure`
@@ -281,8 +281,13 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
                   if haskey(vals, n) && isfinite(vals[n]) && hassos(tree, sos, n))
     isempty(marked) && throw(ArgumentError("None of `nodes` has both an SOS and a finite " *
                                            "metric value; pass `nodes = :all` to mark every node with an SOS"))
-    mostdivergent = metric === :pval ? argmin : argmax
-    node = node === automatic ? mostdivergent(n -> marked[n], keys(marked)) : String(node)
+    node = if node !== automatic
+        String(node)
+    elseif metric isa Symbol
+        most_divergent(res, collect(keys(marked)); by = metric)
+    else
+        argmax(n -> marked[n], keys(marked))
+    end
     label = metric isa Symbol ? string(metric) : "value"
 
     fig = Figure(; size = (1600, 850), figure...)
@@ -308,7 +313,7 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
     # hover labels; a click on a point selects its node, and the node shown has a ring
     op, oax = nothing, nothing
     if showordination
-        ord = sosordination(res, sort!(collect(keys(marked))); ordinationkw...)
+        ord = sos_ordination(res, sort!(collect(keys(marked))); ordinationkw...)
         oax = Axis(np.layout[1, 1]; title = "SOS similarity ($(length(ord.nodes)) nodes)",
                    xlabel = "MDS axis 1", ylabel = "MDS axis 2", autolimitaspect = 1,
                    xgridvisible = false, ygridvisible = false)
@@ -320,4 +325,25 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
     end
     di = inspector ? DataInspector(fig) : nothing
     return fig, NodeExplorer(fig, et.axis, tp, np, et.status, et.images, di, op, oax)
+end
+
+"""
+    link_explorers!(tree, explorers...) -> Vector
+
+Link node explorers, e.g. of the same tree in different spaces: a node picked in one of
+`explorers` (see [`nodeexplorer`](@ref)) is shown in the others too, in those that have an
+SOS for it. Returns the observer functions, so the link can be undone with `off`.
+"""
+function link_explorers!(tree, explorers::NodeExplorer...)
+    links = Any[]
+    for from in explorers, to in explorers
+        from === to && continue
+        link = on(from.panel.node) do n
+            if n != to.panel.node[] && hassos(tree, to.panel.sos, n)
+                to.panel.node[] = n
+            end
+        end
+        push!(links, link)
+    end
+    return links
 end

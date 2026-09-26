@@ -151,13 +151,9 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
     end
 
     @testset "nodepanel" begin
-        # fast clade richness == Nodiv's richness(get_clade(...)), for every node
-        cr = NodivMakie.CladeRichness(asm)
-        for n in treelayout(tree).names
-            @test cr(tree, n) == richness(get_clade(asm, tree, n))
-        end
         fig, np = nodepanel(asm, tree, "root", res)
         @test np isa NodePanel
+        @test np.sos === sos
         # children in Phylo's order, as in Nodiv's plot_node
         kids(n) = [getnodename(tree, c) for c in getchildren(tree, n)]
         @test [ax.title[] for ax in np.axes] == ["root", "SOS", kids("root")...]
@@ -198,28 +194,13 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         res2 = NodeAnalysis(internal, Dict("root" => 0.2, "n1" => 0.85, "n2" => 0.9, "n3" => 0.95),
                             sos2)
         nodes = ["root", "n1", "n2", "n3"]
-        o = sosordination(res2, nodes)
-        @test o isa SOSOrdination && o.nodes == nodes
-        @test size(o.coords) == (2, 4)
-        @test o.distances == sos_distances(res2, nodes)
-        MS = NodivMakie.MultivariateStats
-        @test o.coords == MS.predict(MS.fit(MS.MDS, o.distances; distances = true, maxoutdim = 2))
-        @test issorted(o.eigenvalues; rev = true)
-        @test sosordination(sos2, nodes).coords == o.coords          # a plain Dict of SOS
+        o = sos_ordination(res2, nodes)                              # from Nodiv
         dist(a, b) = sqrt(sum(abs2, o.coords[:, findfirst(==(a), nodes)] .- o.coords[:, findfirst(==(b), nodes)]))
         @test dist("root", "n1") < dist("root", "n2")                 # similar maps plot close
         @test dist("n2", "n3") < dist("n1", "n3")
-        # keyword arguments go to sos_distances: n3 shares only two cells with the others
-        thin = merge(sos2, Dict("n3" => [p2[1:2]; fill(NaN, 10)]))
-        @test sosordination(thin, nodes; minoverlap = 3).distances[4, 1:3] == ones(3)
-        @test sosordination(thin, nodes; minoverlap = 2).distances[4, 3] < 1
-        @test_throws ArgumentError sosordination(res2, ["n1", "n2"])
-        # from a precomputed distance matrix
-        @test sosordination(o.distances, nodes).coords == o.coords
-        @test_throws ArgumentError sosordination(o.distances, nodes[1:3])
-        @test_throws ArgumentError sosordination(o.distances[1:2, 1:2], nodes[1:2])
+        thin = merge(sos2, Dict("n3" => [p2[1:2]; fill(NaN, 10)]))   # n3 shares two cells
         # the eigenvalues, from an ordination with more axes
-        o3 = sosordination(o.distances, nodes; maxoutdim = 3)
+        o3 = sos_ordination(o.distances, nodes; maxoutdim = 3)
         fig, ax, p = eigenvalueplot(o3)
         @test p isa EigenvaluePlot && ax.xlabel[] == "MDS axis"
         @test last.(p.bars[]) == o3.eigenvalues
@@ -439,6 +420,82 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test_throws ArgumentError sosmap!(fig[2, 1], asm, "n2", other)
         @test_throws ArgumentError explorertree!(fig[2, 2], tree, node, Dict("n1" => 1.0);
                                                  images = SpeciesImages(mktempdir()))
+    end
+
+    @testset "linked explorers" begin
+        # the same tree in a second space, where only some nodes have an SOS
+        other = NodeAnalysis(internal, res.gnd, Dict("root" => sos["n2"], "n1" => sos["n1"]))
+        fig1, ex1 = nodeexplorer(asm, tree, res; nodes = :all, ordination = false)
+        fig2, ex2 = nodeexplorer(asm, tree, other; nodes = :all, ordination = false)
+        links = link_explorers!(tree, ex1, ex2)
+        @test length(links) == 2
+        ex1.panel.node[] = "n1"
+        @test ex2.panel.node[] == "n1"
+        ex2.panel.node[] = "root"
+        @test ex1.panel.node[] == "root"
+        ex1.panel.node[] = "n3"                   # no SOS in the other space: it stays
+        @test ex2.panel.node[] == "root"
+        off.(links)
+        ex1.panel.node[] = "n1"
+        @test ex2.panel.node[] == "root"
+    end
+
+    @testset "ready-made figures" begin
+        fap = map_figure(asm; title = "richness", label = "species")
+        @test fap isa Makie.FigureAxisPlot && fap.plot isa SiteMap
+        @test fap.axis.title[] == "richness"
+        @test only(filter(x -> x isa Colorbar, fap.figure.content)).label[] == "species"
+        @test size(Makie.colorbuffer(fap.figure)) != (0, 0)
+
+        # scores on the tree: markers only at the nodes asked for
+        fig, ax, p = metric_tree(tree, res; nodes = ["n1", "n2"], title = "GND")
+        @test p isa TreePlot && ax.title[] == "GND"
+        l = p.tree_layout[]
+        @test sort(l.names[p.shown[]]) == ["n1", "n2"]
+        @test p.joint_colorrange[] == (0, 1)             # GND is a proportion
+        @test only(filter(x -> x isa Colorbar, fig.content)).label[] == "gnd"
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
+        fig, ax, p = metric_tree(tree, res)              # by default the divergent nodes
+        @test p.tree_layout[].names[p.shown[]] == divergent_nodes(res)
+        fig, ax, p = metric_tree(tree, Dict("n1" => 2.0, "n3" => 4.0); label = "rms")
+        @test p.joint_colorrange[] == (2.0, 4.0)
+        @test sort(p.tree_layout[].names[p.shown[]]) == ["n1", "n3"]
+
+        # the node panels of several nodes in one PDF
+        if Sys.which("pdfunite") !== nothing
+            out = joinpath(mktempdir(), "panels.pdf")
+            @test node_panel_pdf(asm, tree, ["root", "n2"], res, out; backend = CairoMakie) == out
+            @test isfile(out) && filesize(out) > 0
+        end
+    end
+
+    @testset "clusters" begin
+        # two clusters of two and a node on its own
+        D = [0 0.1 0.9 0.9 1; 0.1 0 0.9 0.9 1; 0.9 0.9 0 0.2 1; 0.9 0.9 0.2 0 1; 1 1 1 1 0]
+        nodes = ["root", "n1", "n2", "n3", "a"]
+        c = sos_clusters(D, nodes; simcut = 0.7)
+        @test length(c.labels) == 2
+        @test length(cluster_colors(25)) == 25 && cluster_colors(3) == cluster_colors(25)[1:3]
+
+        fig = sos_cluster_heatmap(c; title = "clusters")
+        @test fig isa Figure
+        hm = only(filter(x -> x isa Axis && x.xticks[] isa Tuple, fig.content))
+        @test hm.yticks[][2] == nodes[c.hclust.order]
+        heat = only(filter(x -> x isa Heatmap, hm.scene.plots))
+        @test heat[3][] ≈ (1 .- D)[c.hclust.order, c.hclust.order]
+        # each cluster of more than one node outlined, twice (a black and a coloured line)
+        @test count(x -> x isa Poly, hm.scene.plots) == 4
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
+
+        fig, ax, p = cluster_tree(tree, c; title = "on the tree")
+        @test ax.title[] == "on the tree"
+        groups = filter(x -> x isa Scatter && haskey(x, :label) && !isnothing(x.label[]), p.plots)
+        @test sort([g.label[] for g in groups]) == ["1", "2"]
+        @test any(x -> x isa Legend, fig.content)
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
+        # no clusters of more than one node: no markers, no legend
+        fig, ax, p = cluster_tree(tree, sos_clusters(D, nodes; simcut = 0.95))
+        @test !any(x -> x isa Legend, fig.content)
     end
 
     @testset "species images" begin

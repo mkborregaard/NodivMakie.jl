@@ -20,8 +20,8 @@ tree = parsenewick("((a:1,b:1)n1:1,(c:1.5,(d:1,e:1)n3:0.5)n2:1)root;")
 treeplot(tree)                                   # dendrogram with tip names
 treeplot(tree; treetype = :fan)
 
-# GND on the tree, like Nodiv's `plot_gnd(tree, res)`: nodes missing from the Dict
-# get NaN, which is transparent, so only the analysed nodes show up
+# GND on the tree: nodes missing from the Dict get NaN, which is transparent, so only
+# the analysed nodes show up (`metric_tree`, below, does this with a colour bar)
 fig, ax, p = treeplot(tree; treetype = :fan, showtips = false,
                       nodecolor = res.gnd, colormap = :YlOrRd, colorrange = (0, 1))
 Colorbar(fig[1, 2], p)
@@ -77,10 +77,11 @@ The Makie version of EcoBase's Plots recipes. It draws one value per site as a
 heatmap for gridded sites, or as a scatter for point sites.
 
 ```julia
-sitemap(birds_g)                          # richness, empty cells not drawn
-sitemap(res_g.sos[node], birds_g; colormap = :RdYlBu, colorrange = (-8, 8))
-sitemap(:PC1, birds_g)                    # a site statistic
-sitemap(occupancy, birds_g)               # f(assemblage)
+sitemap(assemblage)                       # richness, empty cells not drawn
+sitemap(res.sos[node], assemblage; colormap = :RdYlBu, colorrange = (-8, 8))
+sitemap(:PC1, assemblage)                 # a site statistic
+sitemap(occupancy, assemblage)            # f(assemblage)
+map_figure(assemblage; title = "Richness", label = "species")   # with a colour bar
 ```
 
 Missing and NaN values are transparent (`nan_color`). The values are the plot's first
@@ -97,8 +98,8 @@ The four map axes are linked, so zooming one zooms them all. The panel reads the
 cached SOS in `res` and never recomputes the analysis.
 
 ```julia
-fig, np = nodepanel(birds_g, tree, "Node 15422", res_g)
-np.node[] = "Node 17672"                  # redraws in place
+fig, np = nodepanel(assemblage, tree, "Node 123", res)
+np.node[] = "Node 456"                    # redraws in place
 ```
 
 The two child-clade map titles are coloured like the clades' branches in the explorer:
@@ -109,24 +110,27 @@ end (`titlecolors = false` to turn this off).
 `Observable{String}`, so anything can drive it. `clademap = false` leaves out the clade
 map and keeps its cell (`np.layout[1, 1]`) free; `np.axes[1]` is then `nothing`.
 
-For speed, clade richness uses a sites × species index built once per panel. It gives
-exactly `richness(get_clade(...))`, but a node switch takes about 10 ms instead of about
-0.8 s on the 18k-cell geographic data.
+For speed, clade richness comes from Nodiv's `clade_richness`, which indexes the
+assemblage once per panel, so switching nodes is fast on large grids.
+
+`node_panel_pdf(assemblage, tree, nodes, res, "panels.pdf"; backend = CairoMakie)` writes
+the panels of many nodes to one PDF, a node per page (it needs `pdfunite`, from poppler).
 
 ## Linked tree and maps: `nodeexplorer`
 
 ```julia
 using GLMakie
-fig, ex = nodeexplorer(birds_g, tree, res_g)
+fig, ex = nodeexplorer(assemblage, tree, res)
 # or another threshold, or every node with an SOS
-fig, ex = nodeexplorer(birds_g, tree, res_g; nodes = divergent_nodes(res_g; threshold = 2))
-fig, ex = nodeexplorer(birds_g, tree, res_g; nodes = :all)
+fig, ex = nodeexplorer(assemblage, tree, res; nodes = divergent_nodes(res; threshold = 2))
+fig, ex = nodeexplorer(assemblage, tree, res; nodes = :all)
 ```
 
 The fan tree marks the divergent nodes, coloured by the divergence metric, with the node
 panel beside it. In the panel, the map of the node's own clade is replaced by an
 ordination of the marked nodes by the similarity of their SOS maps (see
-[below](#ordination-by-sos-similarity-sosordination)). By default these are Nodiv's `divergent_nodes(res)` with its default
+[below](#ordination-by-sos-similarity-ordinationplot)). By default these are Nodiv's
+`divergent_nodes(res)` with its default
 threshold, and the metric is `:rms` for a `NodeMetrics` or `:gnd` for a `NodeAnalysis`.
 The node shown first is the most divergent one. Node markers have a thin dark outline
 (`strokewidth`, `strokecolor`), so high-metric markers stay visible on the red clade. Clicking
@@ -162,6 +166,8 @@ The building blocks can be used on their own:
 - `hassos(tree, sos, node)` tells whether a node can be shown in a panel.
 - `focuscolors(tree, layout, node, sos_colormap, contextcolor)` gives the per-branch
   colours used for the selected node.
+- `link_explorers!(tree, explorers...)` links explorers of the same tree, e.g. in two
+  spaces: a node picked in one is shown in the others that have an SOS for it.
 - `explorertree!(gridposition, tree, node, marked)` is the tree side of the explorer on
   its own: the marked tree, the label and the colour bar, with clicks setting `node`, an
   `Observable` of the node shown. Anything that follows `node` makes up the other panels,
@@ -170,37 +176,62 @@ The building blocks can be used on their own:
 
 ```julia
 fig = Figure(size = (1600, 850))
-node = Observable("Node 17672")
-tr = explorertree!(fig[1, 1], tree, node, Dict(n => res_g.rms[n] for n in divergent_g);
-                   label = "geo rms",
-                   selectable = n -> hassos(tree, res_g.sos, n) && hassos(tree, res_e.sos, n))
-sosmap!(fig[1, 2], birds_g, node, res_g; title = "Geographic SOS")
-sosmap!(fig[1, 3], birds_e, node, res_e; title = "Environmental SOS")
+node = Observable("Node 123")
+# the same tree analysed in two spaces, e.g. geographic and environmental
+tr = explorertree!(fig[1, 1], tree, node, Dict(n => res1.rms[n] for n in divergent_nodes(res1));
+                   label = "rms",
+                   selectable = n -> hassos(tree, res1.sos, n) && hassos(tree, res2.sos, n))
+sosmap!(fig[1, 2], assemblage1, node, res1; title = "SOS, space 1")
+sosmap!(fig[1, 3], assemblage2, node, res2; title = "SOS, space 2")
 DataInspector(fig)
 ```
 
-## Ordination by SOS similarity: `sosordination`
+## Divergence on the tree: `metric_tree`
 
-Classical MDS of nodes by the similarity of their SOS maps, on Nodiv's `sos_distances`
-(1 − |r| over the cells both nodes occupy). It uses the cached SOS in `res`.
+The Makie version of Nodiv's `plot_gnd`: a marker at each divergent node, coloured by its
+score, and a colour bar.
 
 ```julia
-o = sosordination(res_g, divergent_nodes(res_g); minoverlap = 8)
-fig, ax, p = ordinationplot(o; nodecolor = res_g.rms, nodelabels = true)
-Colorbar(fig[1, 2], p)
-o.eigenvalues                                  # of the axes, largest first
+metric_tree(tree, res)                                  # divergent nodes by RMS-SOS
+metric_tree(tree, res; metric = :gnd, nodes = divergent_nodes(res; by = :gnd))
+metric_tree(tree, Dict("Node 1" => 2.3, "Node 7" => 1.8))   # any per-node values
 ```
 
-Keyword arguments other than `maxoutdim` (the number of axes, default 2) go to
-`sos_distances`: `minoverlap`, `method = :pearson | :spearman`, `overlapweight`. Set
-`minoverlap` for each space, as the geographic and environmental spaces have very
-different numbers of cells. With more axes (`maxoutdim = 10`) the eigenvalues show
-whether two axes capture the structure. When the nodes are mostly unrelated in SOS
-pattern, all distances are near 1 and the points form a ring. That is the finding, not
-a failure of the method.
+## Ordination by SOS similarity: `ordinationplot`
+
+Nodiv's `sos_ordination` is a classical MDS of nodes by the similarity of their SOS maps,
+on `sos_distances` (1 − |r| over the cells where both nodes have an SOS). These plot it.
+
+```julia
+o = sos_ordination(res, divergent_nodes(res); minoverlap = 8)
+fig, ax, p = ordinationplot(o; nodecolor = res.rms, nodelabels = true)
+Colorbar(fig[1, 2], p)
+eigenvalueplot(sos_ordination(res, divergent_nodes(res); maxoutdim = 10))
+```
+
+With more axes the eigenvalues show whether two axes capture the structure. When the
+nodes are mostly unrelated in SOS pattern, all distances are near 1 and the points form
+a ring. That is the finding, not a failure of the method.
 
 `ordinationplot` takes per-node `nodecolor` and `nodelabels` like `treeplot`, and
 `selected` rings a node. `nodeat` and `onnodeclick` work on it as on a tree.
+
+## Clusters by SOS similarity: `sos_cluster_heatmap`, `cluster_tree`
+
+Plots of Nodiv's `sos_clusters`, the hierarchical clustering of nodes by the similarity
+of their SOS maps.
+
+```julia
+nodes = divergent_nodes(res)
+clusters = sos_clusters(sos_distances(res, nodes; minoverlap = 8), nodes; simcut = 0.7)
+sos_cluster_heatmap(clusters; title = "SOS clusters")   # |r| heatmap and dendrogram
+cluster_tree(tree, clusters; title = "SOS clusters on the tree")
+```
+
+The heatmap orders the nodes by the dendrogram drawn beside it and outlines each cluster
+of more than one node on the diagonal. `cluster_tree` marks the nodes of those clusters
+on the tree. Both number and colour the clusters alike (`cluster_colors`), so the two can
+be read against each other.
 
 ## Species images: `treeimages!`
 
@@ -211,11 +242,11 @@ ignores case and treats spaces, hyphens and underscores alike. PNG and JPEG are 
 
 ```julia
 fig, ax, tp = treeplot(tree; treetype = :fan, showtips = false)
-ti = treeimages!(ax, tp, "path/to/images", birds_g)   # range sizes from the assemblage
+ti = treeimages!(ax, tp, "path/to/images", assemblage)   # range sizes from the assemblage
 missingimages(ti)            # species to find images for, one per empty position
 
 # in the explorer
-fig, ex = nodeexplorer(birds_g, tree, res_g; images = "path/to/images")
+fig, ex = nodeexplorer(assemblage, tree, res; images = "path/to/images")
 ```
 
 Which species are shown:
@@ -236,7 +267,7 @@ Which species are shown:
    (occupied cells in the assemblage, or a Dict you pass) that has an image. Where none of
    a clade's species has an image, the position is left empty.
 
-On the workshop's bird tree (9852 species), the defaults give 26 images around the fan
+On a bird tree of 9852 species, the defaults give 26 images around the fan
 and 12 beside a dendrogram, covering 90–95% of species. `minclade = 1` makes every clade
 fill at least its own slot; that gives fewer images (19 and 8).
 
