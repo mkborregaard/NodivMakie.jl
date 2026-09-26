@@ -25,7 +25,7 @@ function node_at(tp::TreePlot, plt, idx)
 end
 
 """
-    on_node_click(f, ax, plot; range = 10)
+    on_node_click(f, ax, plot; range=10)
 
 Call `f(nodename)` when a node of `plot` in `ax` is left-clicked: a node marker or branch
 of a `treeplot`, or a point of an [`ordinationplot`](@ref). `range` is the pick radius in
@@ -49,7 +49,7 @@ function _on_node_click(f, ax::Axis, p, pickfn; range=10)
 end
 
 """
-    focus_colors(tree, layout, node, sos_colormap, contextcolor; inset = 0.15)
+    focus_colors(tree, layout, node, sos_colormap, contextcolor; inset=0.15)
 
 One branch colour per node of `layout` (a [`TreeLayout`](@ref)), for `treeplot`'s
 `branchcolor`. The clade of `node`'s first child is drawn in the high end of
@@ -271,7 +271,7 @@ Keyword arguments:
   value. Default `:rms` for a `NodeMetrics`, `:gnd` for a `NodeAnalysis` (Nodiv's defaults).
 - `nodes`: the nodes to mark. Default: the divergent nodes, `divergent_nodes(res)` with
   Nodiv's default threshold, ranked by `metric` when that is `:rms`, `:pval` or `:gnd`.
-  Pass `divergent_nodes(res; threshold = ...)` for another threshold, or `:all` for every
+  Pass `divergent_nodes(res; threshold=...)` for another threshold, or `:all` for every
   node with an SOS.
 - `node`: the node shown first; default the most divergent marked node (highest metric
   value, lowest for `:pval`)

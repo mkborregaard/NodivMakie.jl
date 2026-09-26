@@ -11,7 +11,7 @@ spaces, hyphens and underscores as one underscore. So `Carduelis_hornemanni`,
 species_name(s) = lowercase(replace(strip(String(s)), r"[\s_\-]+" => "_"))
 
 """
-    SpeciesImages(dir; extensions = (".png", ".jpg", ".jpeg"), maxpixels = 256)
+    SpeciesImages(dir; extensions=(".png", ".jpg", ".jpeg"), maxpixels=256)
 
 The species images in `dir`, one file per species, named by species (see
 [`species_name`](@ref) for the matching). Images are loaded when first used, reduced to

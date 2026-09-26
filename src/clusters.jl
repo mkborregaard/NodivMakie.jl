@@ -15,7 +15,7 @@ function cluster_colors(m)
 end
 
 """
-    cluster_tree(tree, clusters; title = "", markersize = 12, kwargs...)
+    cluster_tree(tree, clusters; title="", markersize=12, kwargs...)
 
 The clusters of an `SOSClusters` (from Nodiv's `sos_clusters`) on the tree: a marker at each
 node of a cluster of more than one node, one colour per cluster, with a legend. The nodes
@@ -63,7 +63,7 @@ function cluster_tree(
 end
 
 """
-    sos_cluster_heatmap(clusters; title = "", labelsize = 9, figure = (;)) -> Figure
+    sos_cluster_heatmap(clusters; title="", labelsize=9, figure=(;)) -> Figure
 
 The clustering of an `SOSClusters` (from Nodiv's `sos_clusters`) as a heatmap of the
 similarity `|r|` of the nodes' SOS maps, in the order of the dendrogram, which is drawn on

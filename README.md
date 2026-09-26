@@ -4,35 +4,40 @@ Makie plotting for [Nodiv](https://github.com/mkborregaard/Nodiv.jl): phylogenie
 maps for node-based analysis, built with Makie so that they are interactive (clickable
 nodes linked to maps, hover labels) and can be combined in complex layouts.
 
-`using NodivMakie` loads and re-exports Makie, Phylo, SpatialEcology and Nodiv. You pick
-the backend yourself: `using CairoMakie` for files, `using GLMakie` for interactive windows.
-One name clashes between them: write `SpatialEcology.boundingbox` or `Makie.boundingbox`.
+Load NodivMakie with a Makie backend, `using CairoMakie` for files or `using GLMakie` for
+interactive windows, and with the packages for your data: Phylo for trees,
+SpatialEcology for assemblages and Nodiv for the analysis.
+
+Version 0.3 renamed the functions whose names run words together: `nodepanel` is now
+`node_panel`, `nodeexplorer` is `node_explorer`, `treelayout` is `tree_layout`, and so on.
+The old names still work, with a deprecation warning. Since 0.3, `using NodivMakie` no
+longer loads Makie, Phylo, SpatialEcology and Nodiv as well.
 
 ## Trees: `treeplot`
 
 A Makie recipe that does what Phylo's Plots recipe does.
 
 ```julia
-using NodivMakie, CairoMakie
+using CairoMakie, NodivMakie, Phylo
 
 tree = parsenewick("((a:1,b:1)n1:1,(c:1.5,(d:1,e:1)n3:0.5)n2:1)root;")
 
 treeplot(tree)                                   # dendrogram with tip names
-treeplot(tree; treetype = :fan)
+treeplot(tree; treetype=:fan)
 
 # GND on the tree: nodes missing from the Dict get NaN, which is transparent, so only
 # the analysed nodes show up (`metric_tree`, below, does this with a colour bar)
-fig, ax, p = treeplot(tree; treetype = :fan, showtips = false,
-                      nodecolor = res.gnd, colormap = :YlOrRd, colorrange = (0, 1))
+fig, ax, p = treeplot(tree; treetype=:fan, showtips=false,
+                      nodecolor=res.gnd, colormap=:YlOrRd, colorrange=(0, 1))
 Colorbar(fig[1, 2], p)
 
 # categorical node groups get a legend
-fig, ax, p = treeplot(tree; nodegroup = Dict("n1" => "west", "n2" => "east"))
+fig, ax, p = treeplot(tree; nodegroup=Dict("n1" => "west", "n2" => "east"))
 axislegend(ax)
 
 # into an existing layout
 fig = Figure()
-treeplot!(Axis(fig[1, 1]), tree; branchcolor = Dict("n1" => 1.0, "n2" => 2.0))
+treeplot!(Axis(fig[1, 1]), tree; branchcolor=Dict("n1" => 1.0, "n2" => 2.0))
 ```
 
 How Phylo's Plots attributes translate:
@@ -78,10 +83,10 @@ heatmap for gridded sites, or as a scatter for point sites.
 
 ```julia
 sitemap(assemblage)                       # richness, empty cells not drawn
-sitemap(res.sos[node], assemblage; colormap = :RdYlBu, colorrange = (-8, 8))
+sitemap(res.sos[node], assemblage; colormap=:RdYlBu, colorrange=(-8, 8))
 sitemap(:PC1, assemblage)                 # a site statistic
 sitemap(occupancy, assemblage)            # f(assemblage)
-map_figure(assemblage; title = "Richness", label = "species")   # with a colour bar
+map_figure(assemblage; title="Richness", label="species")   # with a colour bar
 ```
 
 Missing and NaN values are transparent (`nan_color`). The values are the plot's first
@@ -113,17 +118,17 @@ map and keeps its cell (`np.layout[1, 1]`) free; `np.axes[1]` is then `nothing`.
 For speed, clade richness comes from Nodiv's `clade_richness`, which indexes the
 assemblage once per panel, so switching nodes is fast on large grids.
 
-`node_panel_pdf(assemblage, tree, nodes, res, "panels.pdf"; backend = CairoMakie)` writes
+`node_panel_pdf(assemblage, tree, nodes, res, "panels.pdf"; backend=CairoMakie)` writes
 the panels of many nodes to one PDF, a node per page (it needs `pdfunite`, from poppler).
 
 ## Linked tree and maps: `node_explorer`
 
 ```julia
-using GLMakie
+using GLMakie, Nodiv, NodivMakie
 fig, ex = node_explorer(assemblage, tree, res)
 # or another threshold, or every node with an SOS
-fig, ex = node_explorer(assemblage, tree, res; nodes = divergent_nodes(res; threshold = 2))
-fig, ex = node_explorer(assemblage, tree, res; nodes = :all)
+fig, ex = node_explorer(assemblage, tree, res; nodes=divergent_nodes(res; threshold=2))
+fig, ex = node_explorer(assemblage, tree, res; nodes=:all)
 ```
 
 The fan tree marks the divergent nodes, coloured by the divergence metric, with the node
@@ -157,7 +162,7 @@ from its `hoverlabel` attribute, a function of the node name. Like clicking, thi
 an interactive backend.
 
 The ordination is computed from the cached SOS with `sos_distances`' default minimum
-overlap of 3 cells. Set it for the space with `ordinationkw = (; minoverlap = 8)`. With
+overlap of 3 cells. Set it for the space with `ordinationkw=(; minoverlap=8)`. With
 fewer than three marked nodes, or `ordination = false`, the panel shows the clade map.
 
 The building blocks can be used on their own:
@@ -175,14 +180,14 @@ The building blocks can be used on their own:
   `node_explorer` is `explorer_tree!` with a `node_panel!` beside it.
 
 ```julia
-fig = Figure(size = (1600, 850))
+fig = Figure(size=(1600, 850))
 node = Observable("Node 123")
 # the same tree analysed in two spaces, e.g. geographic and environmental
 tr = explorer_tree!(fig[1, 1], tree, node, Dict(n => res1.rms[n] for n in divergent_nodes(res1));
-                   label = "rms",
-                   selectable = n -> has_sos(tree, res1.sos, n) && has_sos(tree, res2.sos, n))
-sos_map!(fig[1, 2], assemblage1, node, res1; title = "SOS, space 1")
-sos_map!(fig[1, 3], assemblage2, node, res2; title = "SOS, space 2")
+                   label="rms",
+                   selectable=n -> has_sos(tree, res1.sos, n) && has_sos(tree, res2.sos, n))
+sos_map!(fig[1, 2], assemblage1, node, res1; title="SOS, space 1")
+sos_map!(fig[1, 3], assemblage2, node, res2; title="SOS, space 2")
 DataInspector(fig)
 ```
 
@@ -193,7 +198,7 @@ score, and a colour bar.
 
 ```julia
 metric_tree(tree, res)                                  # divergent nodes by RMS-SOS
-metric_tree(tree, res; metric = :gnd, nodes = divergent_nodes(res; by = :gnd))
+metric_tree(tree, res; metric=:gnd, nodes=divergent_nodes(res; by=:gnd))
 metric_tree(tree, Dict("Node 1" => 2.3, "Node 7" => 1.8))   # any per-node values
 ```
 
@@ -203,10 +208,10 @@ Nodiv's `sos_ordination` is a classical MDS of nodes by the similarity of their 
 on `sos_distances` (1 − |r| over the cells where both nodes have an SOS). These plot it.
 
 ```julia
-o = sos_ordination(res, divergent_nodes(res); minoverlap = 8)
-fig, ax, p = ordinationplot(o; nodecolor = res.rms, nodelabels = true)
+o = sos_ordination(res, divergent_nodes(res); minoverlap=8)
+fig, ax, p = ordinationplot(o; nodecolor=res.rms, nodelabels=true)
 Colorbar(fig[1, 2], p)
-eigenvalueplot(sos_ordination(res, divergent_nodes(res); maxoutdim = 10))
+eigenvalueplot(sos_ordination(res, divergent_nodes(res); maxoutdim=10))
 ```
 
 With more axes the eigenvalues show whether two axes capture the structure. When the
@@ -223,9 +228,9 @@ of their SOS maps.
 
 ```julia
 nodes = divergent_nodes(res)
-clusters = sos_clusters(sos_distances(res, nodes; minoverlap = 8), nodes; simcut = 0.7)
-sos_cluster_heatmap(clusters; title = "SOS clusters")   # |r| heatmap and dendrogram
-cluster_tree(tree, clusters; title = "SOS clusters on the tree")
+clusters = sos_clusters(sos_distances(res, nodes; minoverlap=8), nodes; simcut=0.7)
+sos_cluster_heatmap(clusters; title="SOS clusters")   # |r| heatmap and dendrogram
+cluster_tree(tree, clusters; title="SOS clusters on the tree")
 ```
 
 The heatmap orders the nodes by the dendrogram drawn beside it and outlines each cluster
@@ -241,12 +246,12 @@ of image files named by species, e.g. `Carduelis_hornemanni.jpg`. The name match
 ignores case and treats spaces, hyphens and underscores alike. PNG and JPEG are read.
 
 ```julia
-fig, ax, tp = treeplot(tree; treetype = :fan, showtips = false)
+fig, ax, tp = treeplot(tree; treetype=:fan, showtips=false)
 ti = tree_images!(ax, tp, "path/to/images", assemblage)   # range sizes from the assemblage
 missing_images(ti)            # species to find images for, one per empty position
 
 # in the explorer
-fig, ex = node_explorer(assemblage, tree, res; images = "path/to/images")
+fig, ex = node_explorer(assemblage, tree, res; images="path/to/images")
 ```
 
 Which species are shown:
@@ -287,8 +292,8 @@ y, so they stay square however the tree axis is shaped.
 `clade_images!(panel, tree, images, rangesize)` puts an image of each child clade's
 widest-ranging species (with an image) in the top-right corner of its richness map. The
 images follow the node shown. They are fixed in screen space, so zooming the maps leaves
-them in place, and their size is `pixelsize`. `node_panel(...; images = dir)` does this
-directly. In `node_explorer(...; images = dir)` they are always the same size as the images
+them in place, and their size is `pixelsize`. `node_panel(...; images=dir)` does this
+directly. In `node_explorer(...; images=dir)` they are always the same size as the images
 around the tree.
 
 ## Plot geometry
@@ -304,6 +309,10 @@ A `treeplot` keeps its computed geometry on the plot object:
 ## Testing
 
 ```julia
-# with TestEnv, in the test environment
+using Pkg
+Pkg.test("NodivMakie")          # with CairoMakie; or, with TestEnv in the test environment,
 include("test/runtests.jl")
 ```
+
+The code follows [BlueStyle](https://github.com/JuliaDiff/BlueStyle), formatted with
+JuliaFormatter 2.14 (`using JuliaFormatter; format(".")`); CI checks it.

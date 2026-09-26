@@ -35,7 +35,7 @@ _node_observable(node::Observable) = node
 _node_observable(node) = Observable(String(node))
 
 """
-    clade_colors(sos_colormap; inset = 0.15) -> (first, second)
+    clade_colors(sos_colormap; inset=0.15) -> (first, second)
 
 The colours standing for a node's two child clades: the high end of the SOS colour map
 for the first child (positive SOS: cells where the first child is over-represented) and
@@ -171,7 +171,7 @@ function node_panel!(
 end
 
 """
-    node_panel(assemblage, tree, node, res; figure = (;), kwargs...)
+    node_panel(assemblage, tree, node, res; figure=(;), kwargs...)
 
 [`node_panel!`](@ref) in a new figure. Returns `(figure, panel)`.
 """

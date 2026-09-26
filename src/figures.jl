@@ -2,7 +2,7 @@
 # and node panels written to a PDF.
 
 """
-    map_figure(args...; title = "", label = "", axis = (;), kwargs...)
+    map_figure(args...; title="", label="", axis=(;), kwargs...)
 
 A [`sitemap`](@ref) of `args` in a new figure, with a colour bar labelled `label` beside
 it, and `title` over the map. Other keyword arguments go to `sitemap`. Returns a

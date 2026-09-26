@@ -261,7 +261,7 @@ function _image_options(imageoptions, default)
 end
 
 """
-    clade_images!(panel, tree, images, rangesize; pixelsize = 60, kwargs...) -> Vector
+    clade_images!(panel, tree, images, rangesize; pixelsize=60, kwargs...) -> Vector
 
 Put a species image in the top-right corner of the two child-clade richness maps of a
 [`NodePanel`](@ref): each clade's species with the largest range size that has an image.

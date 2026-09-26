@@ -27,7 +27,7 @@ function _tip_spans(l::TreeLayout)
 end
 
 """
-    select_clades(layout, nslots; minclade = 0.5, circular = false) -> Vector{Int}
+    select_clades(layout, nslots; minclade=0.5, circular=false) -> Vector{Int}
 
 Choose the clades (as `layout` indices, in tip order) to show one image each, with the
 tip edge divided into `nslots` equal slots of `w = ntips / nslots` tips. An image is one
@@ -162,7 +162,7 @@ function image_clades(l::TreeLayout, nslots::Integer, rangesize, images; kwargs.
 end
 
 """
-    image_geometry(layout, treetype; imagesize = automatic, nimages = automatic,
+    image_geometry(layout, treetype; imagesize=automatic, nimages=automatic,
                   gap = 0.04, spacing = 0.1, shape = :circle)
 
 How large the images are and how many fit, in the tree's data coordinates.

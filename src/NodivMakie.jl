@@ -1,3 +1,12 @@
+"""
+    NodivMakie
+
+Makie plotting for Nodiv's node-based analysis of species distributions: trees
+([`treeplot`](@ref)), maps ([`sitemap`](@ref)), the panel of a node's maps
+([`node_panel`](@ref)), and the tree and panel linked by clicks
+([`node_explorer`](@ref)). Load a Makie backend with it: CairoMakie for files, GLMakie for
+interactive windows.
+"""
 module NodivMakie
 
 using ColorTypes: Colorant, alpha

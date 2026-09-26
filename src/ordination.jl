@@ -125,7 +125,7 @@ The eigenvalues of the axes of an `SOSOrdination` (from Nodiv's `sos_ordination`
 largest first. They tell whether the first two axes, the ones [`ordinationplot`](@ref)
 shows, carry the structure: if axes 3 and up are about as large, the 2-D picture is a
 projection. Fit the ordination with more than two axes for this, e.g.
-`sos_ordination(D, nodes; maxoutdim = 10)`.
+`sos_ordination(D, nodes; maxoutdim=10)`.
 """
 @recipe EigenvaluePlot (ordination,) begin
     "Bar colour."
