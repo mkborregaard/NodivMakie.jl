@@ -53,7 +53,7 @@ function Makie.convert_arguments(
     return Makie.convert_arguments(T, f(asm), asm)
 end
 function Makie.convert_arguments(
-    T::Type{<:SiteMap}, stat::Symbol, asm::SpatialEcology.SEAssemblage
+    T::Type{<:SiteMap}, stat::Symbol, asm::EcoBase.AbstractAssemblage
 )
     return Makie.convert_arguments(T, sitestats(asm)[!, stat], asm)
 end

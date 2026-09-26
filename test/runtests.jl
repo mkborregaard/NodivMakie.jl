@@ -1,6 +1,9 @@
 using CairoMakie
+using Nodiv
 using NodivMakie
+using Phylo
 using Random
+using SpatialEcology
 using Test
 
 include("testdata.jl")

@@ -1,20 +1,29 @@
 module NodivMakie
 
-using ColorTypes: alpha
+using ColorTypes: Colorant, alpha
 using EcoBase: EcoBase
 using EcoBase: coordinates, getcoords, occupancy, places, richness, xrange, yrange
-using FileIO: FileIO
-using GridLayoutBase: GridLayoutBase
-using GridLayoutBase: insertcols!
+using FileIO: FileIO, save
+using GridLayoutBase: GridLayoutBase, insertcols!
 using ImageIO: ImageIO      # loaded here so that FileIO can read PNG and JPEG images
-using Makie: Automatic, Colorant, Point2d, RGBAf, Vec2f
-using Makie: automatic, ncols, to_color
-using Reexport: @reexport
-
-@reexport using Makie
-@reexport using Nodiv
-@reexport using Phylo
-@reexport using SpatialEcology
+using Makie: Makie
+using Makie: Axis, Colorbar, Consume, DataInspector, Figure, GridLayout, Label, Legend
+using Makie: Lines, Mouse, Observable, Point2d, Point2f, RGBAf, Rect2d, Relative, Reverse
+using Makie: Scatter, Vec2f
+using Makie: @recipe
+using Makie: (..), automatic, barplot!, colsize!, dendrogram!, events, heatmap!
+using Makie: hidedecorations!, hidespines!, image!, lift, limits!, lines!, linkaxes!
+using Makie: linkyaxes!, mouseposition, mouseposition_px, ncols, on, pick, poly!
+using Makie: scatter!, text!, textlabel!, to_color, to_colormap, to_value, translate!
+using Makie: xlims!
+using Nodiv: Nodiv
+using Nodiv: SOSClusters, SOSOrdination
+using Nodiv: clade_richness, default_score, divergent_nodes, most_divergent, node_scores
+using Nodiv: nodespecies, sos_ordination
+using Phylo: Phylo
+using Phylo: getchildren, getdescendants, getnodedata, getnodename, getparent, hasinbound
+using Phylo: hasnode, isleaf
+using SpatialEcology: sitestats
 
 include("layout.jl")
 include("treeplot.jl")

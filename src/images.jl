@@ -35,10 +35,10 @@ function SpeciesImages(
     exts = lowercase.(collect(extensions))
     # sorted, so a species with several files always gets the same one
     for f in sort(readdir(dir))
-        stem, ext = splitext(f)
+        base, ext = splitext(f)
         lowercase(ext) in exts || continue
         isfile(joinpath(dir, f)) || continue        # e.g. a link to a file not there (yet)
-        get!(files, speciesname(stem), joinpath(dir, f))
+        get!(files, speciesname(base), joinpath(dir, f))
     end
     return SpeciesImages(String(dir), files, maxpixels, Dict{String,Matrix{RGBAf}}())
 end
