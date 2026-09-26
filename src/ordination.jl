@@ -17,7 +17,7 @@ struct SOSOrdination
     distances::Matrix{Float64}
 end
 
-sosdistances(res::Union{Nodiv.NodeAnalysis, Nodiv.NodeMetrics}, nodes; kwargs...) =
+sosdistances(res::Nodiv.AbstractNodeResult, nodes; kwargs...) =
     sos_distances(res, nodes; kwargs...)
 sosdistances(sos::AbstractDict, nodes; kwargs...) = sos_distances([sos[n] for n in nodes]; kwargs...)
 

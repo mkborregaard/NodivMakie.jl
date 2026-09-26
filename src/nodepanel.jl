@@ -24,7 +24,7 @@ struct NodePanel
     colorbars::Vector{Colorbar}
 end
 
-sosvalues(res::Union{Nodiv.NodeAnalysis, Nodiv.NodeMetrics}) = res.sos
+sosvalues(res::Nodiv.AbstractNodeResult) = res.sos
 
 """
     cladecolors(sos_colormap; inset = 0.15) -> (first, second)

@@ -119,9 +119,9 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
     occ[1, 1:6] .= 1; occ[2, 4:9] .= 1; occ[3, 7:12] .= 1; occ[4, [1, 5, 9]] .= 1; occ[5, 10:12] .= 1
     sites = ["s$i" for i in 1:12]
     asm = Assemblage(occ, Float64[first.(grid) last.(grid)], sites, ["a", "b", "c", "d", "e"])
-    sos = Dict(n => collect(range(-8, 8; length = 12)) .* k
-               for (k, n) in enumerate(["root", "n1", "n2", "n3"]))
-    res = NodeAnalysis(Dict("root" => 0.2, "n1" => 0.4, "n2" => 0.9, "n3" => 0.5), sos)
+    internal = ["root", "n1", "n2", "n3"]                # the internal nodes in tree order
+    sos = Dict(n => collect(range(-8, 8; length = 12)) .* k for (k, n) in enumerate(internal))
+    res = NodeAnalysis(internal, Dict("root" => 0.2, "n1" => 0.4, "n2" => 0.9, "n3" => 0.5), sos)
 
     @testset "sitemap" begin
         @test nsites(asm) == 12
@@ -195,7 +195,8 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         # root and n1 have nearly the same SOS map, as have n2 and n3
         p1, p2, e = collect(1.0:12) .- 6.5, 5 .* sin.(1:12), 0.3 .* cos.(3 .* (1:12))
         sos2 = Dict("root" => p1, "n1" => p1 .+ e, "n2" => p2, "n3" => p2 .- e)
-        res2 = NodeAnalysis(Dict("root" => 0.2, "n1" => 0.85, "n2" => 0.9, "n3" => 0.95), sos2)
+        res2 = NodeAnalysis(internal, Dict("root" => 0.2, "n1" => 0.85, "n2" => 0.9, "n3" => 0.95),
+                            sos2)
         nodes = ["root", "n1", "n2", "n3"]
         o = sosordination(res2, nodes)
         @test o isa SOSOrdination && o.nodes == nodes
@@ -273,7 +274,7 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test hover(op.plots[1], findfirst(==("n2"), op.ordination[].nodes)) == "n2  (3 species)\ngnd = 0.9"
         @test size(Makie.colorbuffer(fig)) != (0, 0)
         # options for the ordination
-        fig, ex = nodeexplorer(asm, tree, NodeAnalysis(res2.gnd, thin); nodes = :all,
+        fig, ex = nodeexplorer(asm, tree, NodeAnalysis(res2.nodes, res2.gnd, thin); nodes = :all,
                                ordinationkw = (; minoverlap = 2))
         @test ex.ordination.ordination[].distances[4, 3] < 1
         # the clade map instead: on request, or with fewer than three marked nodes
@@ -384,9 +385,10 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         fig, ex = nodeexplorer(asm, tree, res; nodes = :all)
         @test keys(shownvals(ex)) == Set(keys(sos))
         # a NodeMetrics: RMS-SOS by default, divergent by RMS > 1.5; :pval starts at the lowest
-        nm = Nodiv.NodeMetrics(res.gnd, Dict("root" => 1.0, "n1" => 2.5, "n2" => 1.8, "n3" => 1.2),
-                               Dict(n => 0.0 for n in keys(sos)), Dict(n => 0.0 for n in keys(sos)),
-                               Dict("root" => 0.5, "n1" => 0.01, "n2" => 0.03, "n3" => 0.2), sos)
+        zeros_ = Dict(n => 0.0 for n in keys(sos))
+        nm = NodeMetrics(res.nodes, res.gnd, Dict("root" => 1.0, "n1" => 2.5, "n2" => 1.8, "n3" => 1.2),
+                         zeros_, zeros_, Dict("root" => 0.5, "n1" => 0.01, "n2" => 0.03, "n3" => 0.2),
+                         Dict(n => 1.0 for n in keys(sos)), sos)
         fig, ex = nodeexplorer(asm, tree, nm)
         @test keys(shownvals(ex)) == Set(["n1", "n2"])
         @test ex.panel.node[] == "n1"
