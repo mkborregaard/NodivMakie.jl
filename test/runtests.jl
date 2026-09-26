@@ -1,7 +1,7 @@
-using NodivMakie
 using CairoMakie
-using Test
+using NodivMakie
 using Random
+using Test
 
 include("testdata.jl")
 

@@ -47,7 +47,8 @@
     @test all(==(14), markers(tp)[1].markersize[] .* 1)   # larger node markers
     @test markers(tp)[1].strokewidth[] == 1                # with an outline
     @test markers(tp)[1].strokecolor[] == to_color(:gray20)
-    @test !any(p -> p isa Scatter && !(p.parent isa TreePlot), ex.axis.scene.plots)  # no ring
+    # no ring
+    @test !any(p -> p isa Scatter && !(p.parent isa TreePlot), ex.axis.scene.plots)
     # a custom SOS colour map carries over to the tree
     fig3, ex3 = nodeexplorer(asm, tree, res; panel = (; sos_colormap = Reverse(:RdBu)))
     l3, tp3 = ex3.treeplot.tree_layout[], ex3.treeplot

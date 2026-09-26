@@ -31,7 +31,8 @@
     plain = NodivMakie._marker_image(bird, :circle)
     filled = NodivMakie._marker_image(bird, :circle; whitebackground = true)
     @test size(filled, 1) < size(plain, 1) / 1.5          # the bird is drawn much larger
-    @test count(p -> p.alpha > 0.99, filled) >= count(p -> p.r < 0.5, bird) - 10   # none clipped
+    # none clipped
+    @test count(p -> p.alpha > 0.99, filled) >= count(p -> p.r < 0.5, bird) - 10
     @test size(filled, 1) <= ceil(Int, 42 * 1.03) + 1     # just around the 40-pixel oval
     # clip: a larger image, with only a little of the subject cut off
     clipped = NodivMakie._marker_image(bird, :circle; whitebackground = true, clip = 0.05)
@@ -96,7 +97,8 @@
         @test (length(ch), sum(i -> shi[i] - slo[i] + 1, ch; init = 0)) == best
     end
     # a lone species sister to a big clade does not pull the big clade into one image
-    lone = parsenewick("(x:3,(((a:1,b:1)ab:1,(c:1,d:1)cd:1)abcd:1,((e:1,f:1)ef:1,(g:1,h:1)gh:1)efgh:1)big:1)root;")
+    lone = parsenewick("(x:3,(((a:1,b:1)ab:1,(c:1,d:1)cd:1)abcd:1," *
+                       "((e:1,f:1)ef:1,(g:1,h:1)gh:1)efgh:1)big:1)root;")
     ll = treelayout(lone)
     for m in (1.0, 0.5)
         chosen = ll.names[selectclades(ll, 4; minclade = m)]

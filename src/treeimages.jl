@@ -42,6 +42,7 @@ function _outline_points!(pts, x, y, w, sx, sy, shape)
         end
     end
     push!(pts, Point2d(NaN, NaN))
+    return nothing
 end
 
 # Whether the cursor is over a visible pixel of an image plot (at least half opaque), so
@@ -84,7 +85,7 @@ column right of a dendrogram (in a narrow axis added beside `ax`, linked in y).
 
 - `images`: a [`SpeciesImages`](@ref), or the path of a directory of images named by
   species (e.g. `Carduelis_hornemanni.jpg`). No images come with the package.
-- `rangesize`: an assemblage (range size = number of _occupied cells) or a Dict of
+- `rangesize`: an assemblage (range size = number of occupied cells) or a Dict of
   species => range size.
 
 How many images fit follows from their size (see [`imagegeometry`](@ref)); that many
@@ -132,7 +133,8 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
                          circular = tt === :fan)
     nmissing = count(c -> c.shown === nothing, clades)
     nmissing > 0 &&
-        @info "$nmissing of $(length(clades)) image positions have no image for any species of their clade; `missingimages` lists the species to find"
+        @info "$nmissing of $(length(clades)) image positions have no image for any " *
+              "species of their clade; `missingimages` lists the species to find"
     centre(c) = (first(c.tips) + last(c.tips)) / 2
     hovertext(c) = "$(_display_name(c.shown))\nfor $(c.clade) ($(length(c.tips)) species)"
     shown = filter(c -> c.shown !== nothing, clades)
@@ -252,8 +254,10 @@ function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, ma
         ax = np.axes[2 + k]
         species = Observable{Union{String, Nothing}}(representative(child(np.node[], k)))
         on(n -> (species[] = representative(child(n, k))), np.node)
-        img = lift(sp -> sp === nothing ? blank :
-                         _marker_image(images[sp], shape; fit, whitebackground, clip), species)
+        img = lift(species) do sp
+            sp === nothing && return blank
+            return _marker_image(images[sp], shape; fit, whitebackground, clip)
+        end
         xs = lift((vp, s) -> (vp.widths[1] - margin - s) .. (vp.widths[1] - margin),
                   ax.scene.viewport, px)
         ys = lift((vp, s) -> (vp.widths[2] - margin - s) .. (vp.widths[2] - margin),

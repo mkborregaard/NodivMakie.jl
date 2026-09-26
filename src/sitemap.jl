@@ -26,8 +26,8 @@ end
 _site_values(v) = Float64[ismissing(x) || x === nothing ? NaN : Float64(x) for x in v]
 
 # Richness with empty sites as NaN, so they are not drawn
-function _occupied(richness)
-    r = _site_values(richness)
+function _occupied(richnesses)
+    r = _site_values(richnesses)
     r[r .== 0] .= NaN
     return r
 end

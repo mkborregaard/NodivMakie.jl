@@ -1,16 +1,18 @@
 module NodivMakie
 
-using Reexport
+using ColorTypes: alpha
+using EcoBase: EcoBase
+using EcoBase: coordinates, getcoords, occupancy, places, richness, xrange, yrange
+using FileIO: FileIO
+using ImageIO: ImageIO      # loaded here so that FileIO can read PNG and JPEG images
+using Makie: Automatic, Colorant, Point2d, RGBAf, Vec2f
+using Makie: automatic, insertcols!, ncols, to_color
+using Reexport: @reexport
+
 @reexport using Makie
+@reexport using Nodiv
 @reexport using Phylo
 @reexport using SpatialEcology
-@reexport using Nodiv
-using Makie: automatic, Automatic, Colorant, RGBAf, Point2d, Vec2f, to_color
-using ColorTypes: alpha
-import EcoBase
-using EcoBase: richness, places, getcoords, coordinates, xrange, yrange, occupancy
-import FileIO, ImageIO
-using Makie: ncols, insertcols!
 
 include("layout.jl")
 include("treeplot.jl")

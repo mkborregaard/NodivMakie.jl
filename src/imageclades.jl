@@ -101,8 +101,9 @@ function selectclades(l::TreeLayout, nslots::Integer; minclade = 0.5, circular =
     centre(i) = (lo[i] + hi[i]) / 2
     while circular && length(chosen) >= 2 &&
           (T + 1) - (centre(chosen[end]) - centre(chosen[1])) < w - 1e-9
-        k = hi[chosen[1]] - lo[chosen[1]] <= hi[chosen[end]] - lo[chosen[end]] ? 1 : length(chosen)
-        deleteat!(chosen, k)
+        # drop the smaller of the two
+        firstsmaller = hi[chosen[1]] - lo[chosen[1]] <= hi[chosen[end]] - lo[chosen[end]]
+        deleteat!(chosen, firstsmaller ? 1 : length(chosen))
     end
     return chosen
 end
@@ -136,15 +137,17 @@ _by_range(species, rs) = sort(species; by = s -> (-get(rs, s, 0.0), s))
 """
     imageclades(layout, nslots, rangesize, images; minclade, circular) -> Vector{CladeImage}
 
-The clades chosen by [`selectclades`](@ref) (which takes the keyword arguments), each with its representative species: the
-one with the largest range size among those with an image in `images` (anything with
-`haskey`, e.g. a [`SpeciesImages`](@ref)). `rangesize` is a Dict of species => range size
-or an assemblage (range size = number of _occupied cells). Ties go alphabetically.
+The clades chosen by [`selectclades`](@ref) (which takes the keyword arguments), each
+with its representative species: the one with the largest range size among those with an
+image in `images` (anything with `haskey`, e.g. a [`SpeciesImages`](@ref)). `rangesize` is
+a Dict of species => range size or an assemblage (range size = number of occupied cells).
+Ties go alphabetically.
 """
 function imageclades(l::TreeLayout, nslots::Integer, rangesize, images; kwargs...)
     rs = _range_sizes(rangesize)
     lo, hi = _tip_spans(l)
-    tipnames = l.names[sortperm(l.depth .+ .!l.isleaf .* Inf)][1:_ntips(l)]   # by position
+    tips = findall(l.isleaf)
+    tipnames = l.names[tips[sortperm(l.depth[tips])]]    # by position along the tip edge
     return map(selectclades(l, nslots; kwargs...)) do i
         sps = _by_range(tipnames[lo[i]:hi[i]], rs)
         k = findfirst(s -> haskey(images, s), sps)
@@ -193,7 +196,11 @@ function imagegeometry(l::TreeLayout, treetype::Symbol; imagesize = automatic,
             a, b = 0.0, 2R
             for _ in 1:60
                 m = (a + b) / 2
-                fits(m) ? (a = m) : (b = m)
+                if fits(m)
+                    a = m
+                else
+                    b = m
+                end
             end
             s = a
             r = R * (1 + gap) + s / 2
@@ -208,6 +215,7 @@ function imagegeometry(l::TreeLayout, treetype::Symbol; imagesize = automatic,
             s = T / (n * room)
         end
         return (; nimages = clamp(n, 1, T), size = s, radius = NaN)
+    else
+        throw(_treetype_error(treetype))
     end
-    throw(ArgumentError("Unsupported `treetype` $(repr(treetype))"))
 end

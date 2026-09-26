@@ -77,7 +77,8 @@ Keyword arguments:
   `sos_colorrange = (-8, 8)`: the colours of `plot_node`
 - `colorbars = true`: a colour bar beside each map
 - `clademap = true`: draw the map of the node's own clade (top left). With `false` that
-  cell of `panel.layout` is left free, as the [`nodeexplorer`](@ref) does for its ordination.
+  cell of `panel.layout` is left free, as the [`nodeexplorer`](@ref) does for its
+  ordination.
 - `titlecolors = true`: colour the child clades' map titles by [`cladecolors`](@ref), as
   the explorer colours their branches (`colorinset` as its `focusinset`)
 - `axis = (;)`: attributes for all four axes
@@ -121,8 +122,11 @@ function nodepanel!(gp, assemblage, tree, node, res;
         end
         ax = Axis(gl[row, 2col - 1]; title = lift(d -> d.titles[i], data),
                   autolimitaspect = 1, xgridvisible = false, ygridvisible = false, axis...)
-        cm = i == 2 ? (colormap = sos_colormap, colorrange = sos_colorrange) :
-             (colormap = richness_colormap,)
+        if i == 2
+            cm = (colormap = sos_colormap, colorrange = sos_colorrange)
+        else
+            cm = (colormap = richness_colormap,)
+        end
         m = sitemap!(ax, lift(d -> d.values[i], data), locs; cm...)
         push!(axes, ax)
         push!(maps, m)

@@ -17,7 +17,8 @@ end
         @test size(Makie.colorbuffer(fig)) != (0, 0)
         # one branch per non-root node, NaN-separated
         @test count(q -> isnan(q[1]), p.branch_points[]) == 4 + 4
-        @test all(iszero, only(child(p, Scatter)).markersize[])   # no node markers by default
+        # no node markers by default
+        @test all(iszero, only(child(p, Scatter)).markersize[])
     end
     @test_throws ArgumentError treeplot(tree; treetype = :radial)
 end
@@ -87,7 +88,8 @@ end
     l = p.tree_layout[]
     @test Dict(zip(boxes.text[], boxes[1][])) ==
           Dict("1" => p.node_points[][l.index["n1"]], "3" => p.node_points[][l.index["n3"]])
-    @test length(child(p, Makie.Text)) == 1                      # only the tip names are plain text
+    # only the tip names are plain text
+    @test length(child(p, Makie.Text)) == 1
     @test size(Makie.colorbuffer(fig)) != (0, 0)
 end
 

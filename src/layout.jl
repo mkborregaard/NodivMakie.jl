@@ -35,8 +35,8 @@ function treelayout(tree::Phylo.AbstractTree)
     index = Dict(name => i for (i, name) in enumerate(names))
     parent = [hasinbound(tree, x) ? index[getnodename(tree, getparent(tree, x))] : 0
               for x in n]
-    TreeLayout(names, Float64[h[x] for x in n], Float64[d[x] for x in n], parent,
-               BitVector([isleaf(tree, x) for x in n]), index)
+    return TreeLayout(names, Float64[h[x] for x in n], Float64[d[x] for x in n], parent,
+                      BitVector([isleaf(tree, x) for x in n]), index)
 end
 
 Base.length(l::TreeLayout) = length(l.names)
@@ -59,8 +59,14 @@ function _node_positions(l::TreeLayout, treetype::Symbol)
     elseif treetype === :fan
         nt = _ntips(l)
         return [_polar(r, _fan_angle(d, nt)) for (r, d) in zip(l.height, l.depth)]
+    else
+        throw(_treetype_error(treetype))
     end
-    throw(ArgumentError("Unsupported `treetype` $(repr(treetype)); valid values are `:dendrogram` or `:fan`"))
+end
+
+function _treetype_error(treetype)
+    return ArgumentError("Unsupported `treetype` $(repr(treetype)); valid values are " *
+                         "`:dendrogram` or `:fan`")
 end
 
 """
@@ -93,7 +99,7 @@ function _branch_paths(l::TreeLayout, treetype::Symbol)
             end
             push!(pts, _polar(hi, θi))
         else
-            _node_positions(l, treetype)  # throws the informative error
+            throw(_treetype_error(treetype))
         end
         push!(pts, nan)
         append!(owner, Iterators.repeated(i, length(pts) - n0))

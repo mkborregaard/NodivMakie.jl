@@ -4,12 +4,12 @@
 """
     ordinationplot(ordination; kwargs...)
 
-The nodes of an `SOSOrdination` (from Nodiv's `sos_ordination`) as points on its first two
-axes. Like `treeplot`'s, the per-node values (`nodecolor`, `nodelabels`) are a Dict of node name =>
-value (nodes missing from it get `nan_color`, transparent by default), a vector in
-`ordination.nodes` order, or a function of the node name. `selected` marks one node with
-a ring. [`nodeat`](@ref) and [`onnodeclick`](@ref) work on it as on a tree, which is how
-the [`nodeexplorer`](@ref) selects a node from its ordination.
+The nodes of an `SOSOrdination` (from Nodiv's `sos_ordination`) as points on its first
+two axes. Like `treeplot`'s, the per-node values (`nodecolor`, `nodelabels`) are a Dict
+of node name => value (nodes missing from it get `nan_color`, transparent by default), a
+vector in `ordination.nodes` order, or a function of the node name. `selected` marks one
+node with a ring. [`nodeat`](@ref) and [`onnodeclick`](@ref) work on it as on a tree,
+which is how the [`nodeexplorer`](@ref) selects a node from its ordination.
 """
 @recipe OrdinationPlot (ordination,) begin
     "Point colour: a colour, or per-node values mapped through `colormap`."
@@ -23,7 +23,10 @@ the [`nodeexplorer`](@ref) selects a node from its ordination.
     nodelabels = nothing
     nodelabelsize = 8
     nodelabelcolor = :black
-    "The node marked with a ring, or `nothing`. A node that is not in the ordination gets no ring."
+    """
+    The node marked with a ring, or `nothing`. A node that is not in the ordination gets no
+    ring.
+    """
     selected = nothing
     "The colour of the ring."
     selectedcolor = :black

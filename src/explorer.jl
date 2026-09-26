@@ -258,7 +258,8 @@ Keyword arguments:
 - `inspector = true`: hovering shows a label (a `DataInspector`): on the tree and the
   ordination the node (for a branch, the node it leads to) with its number of species and
   `metric` value, on the maps the cell's value. Needs an interactive backend.
-- `pickfn = pick`: the picking function (replaced in the tests, where CairoMakie cannot pick)
+- `pickfn = pick`: the picking function (replaced in the tests, where CairoMakie cannot
+  pick)
 
 Returns `(figure, explorer)`; see [`NodeExplorer`](@ref). Clicking needs an interactive
 backend (`using GLMakie`); with CairoMakie you get the figure for the initial node.

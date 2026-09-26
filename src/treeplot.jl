@@ -32,7 +32,10 @@ Which nodes get them is controlled by `shownodes`.
     "Tree shape: `:dendrogram` or `:fan`."
     treetype = :dendrogram
 
-    "Branch colour: a colour, or per-node values (the branch leading to each node) mapped through `colormap`."
+    """
+    Branch colour: a colour, or per-node values (the branch leading to each node) mapped
+    through `colormap`.
+    """
     branchcolor = :black
     "Colour of branches whose value is missing or NaN."
     branch_nan_color = :gray80
@@ -41,7 +44,10 @@ Which nodes get them is controlled by `shownodes`.
     "Branch line style."
     linestyle = nothing
 
-    "Node marker colour: a colour, or per-node values mapped through `colormap`. Missing/NaN values use `nan_color` (transparent by default, i.e. hidden)."
+    """
+    Node marker colour: a colour, or per-node values mapped through `colormap`.
+    Missing/NaN values use `nan_color` (transparent by default, i.e. hidden).
+    """
     nodecolor = nothing
     "Node marker size: a number or per-node values."
     markersize = nothing
@@ -50,18 +56,25 @@ Which nodes get them is controlled by `shownodes`.
     strokewidth = 0
     strokecolor = :black
     """
-    Nodes that get markers and labels: `:internal`, `:all`, `:tips`, or a vector of node names.
+    Nodes that get markers and labels: `:internal`, `:all`, `:tips`, or a vector of node
+    names.
     `automatic` picks `:all` when a per-node specification covers every node (a Dict,
     function, node-data field or length-nnodes vector), `:tips` for a length-ntips vector,
     and `:internal` otherwise - the same rule as Phylo.
     """
     shownodes = automatic
-    "Categorical per-node values; draws one labelled scatter per group (for `Legend`/`axislegend`). Overrides `nodecolor`."
+    """
+    Categorical per-node values; draws one labelled scatter per group (for
+    `Legend`/`axislegend`). Overrides `nodecolor`.
+    """
     nodegroup = nothing
     "Colours cycled over the sorted groups of `nodegroup`."
     groupcolors = Makie.wong_colors()
 
-    "Text at nodes: `true` for node names (tips excluded while `showtips`), or per-node strings."
+    """
+    Text at nodes: `true` for node names (tips excluded while `showtips`), or per-node
+    strings.
+    """
     nodelabels = nothing
     nodelabelsize = 9
     nodelabelcolor = :black
@@ -110,7 +123,8 @@ _per_node(x::AbstractDict, names) = Any[get(x, n, missing) for n in names]
 _per_node(f::Function, names) = Any[f(n) for n in names]
 function _per_node(x::AbstractVector, names)
     length(x) == length(names) ||
-        throw(ArgumentError("A per-node vector must have one value per node ($(length(names))); got $(length(x))"))
+        throw(ArgumentError("A per-node vector must have one value per node " *
+                            "($(length(names))); got $(length(x))"))
     return Vector{Any}(x)
 end
 
@@ -156,24 +170,70 @@ function _spec_coverage(x, l)
     return :internal
 end
 
+# The nodes that get markers and labels. `automatic`: every node if a per-node spec covers
+# them all, the tips if one covers the tips, and otherwise the internal nodes
 function _shown_indices(l::TreeLayout, shownodes, specs...)
     if shownodes === automatic
-        covs = [_spec_coverage(s, l) for s in specs if !(s === nothing || s isa Bool || _is_color_spec(s))]
-        shownodes = :all in covs ? :all : :tips in covs ? :tips : :internal
+        pernode = filter(s -> !(s === nothing || s isa Bool || _is_color_spec(s)), specs)
+        covs = [_spec_coverage(s, l) for s in pernode]
+        if :all in covs
+            shownodes = :all
+        elseif :tips in covs
+            shownodes = :tips
+        else
+            shownodes = :internal
+        end
     end
-    shownodes === :all && return collect(eachindex(l.names))
-    shownodes === :internal && return findall(!, l.isleaf)
-    shownodes === :tips && return findall(l.isleaf)
-    shownodes isa AbstractVector && return [l.index[string(n)] for n in shownodes]
-    throw(ArgumentError("`shownodes` must be :internal, :all, :tips or a vector of node names"))
+    if shownodes === :all
+        return collect(eachindex(l.names))
+    elseif shownodes === :internal
+        return findall(!, l.isleaf)
+    elseif shownodes === :tips
+        return findall(l.isleaf)
+    elseif shownodes isa AbstractVector
+        return [l.index[string(n)] for n in shownodes]
+    else
+        throw(ArgumentError("`shownodes` must be :internal, :all, :tips or a vector of " *
+                            "node names"))
+    end
+end
+
+# The marker colours of the shown nodes: black by default, one colour, or per-node values
+function _marker_colors(nc, tree, l, shown, nancolor)
+    nc === nothing && return :black
+    _is_color_spec(nc) && return nc
+    return _color_values(_per_node(nc, tree, l)[shown], nancolor)
+end
+
+# The marker sizes of the shown nodes: 8 by default, one size, or per-node values (no
+# marker where a value is missing)
+function _marker_sizes(ms, tree, l, shown)
+    ms === nothing && return 8.0
+    ms isa Real && return Float64(ms)
+    return Float64[v isa Real ? v : 0.0 for v in _per_node(ms, tree, l)[shown]]
+end
+
+# The label texts of the shown nodes. `true` gives the node names, but not for the tips
+# while `showtips` already names them.
+function _marker_texts(lab, tree, l, shown, showtips)
+    (lab === nothing || lab === false) && return fill("", length(shown))
+    lab === true && return [showtips && l.isleaf[i] ? "" : l.names[i] for i in shown]
+    return _label_texts(_per_node(lab, tree, l)[shown])
+end
+
+# Room for the tip names, as a fraction of the tree's height or radius: by default
+# Phylo's margins, and none without tip names
+function _tip_pad(pad, showtips, treetype)
+    pad === automatic || return pad
+    showtips || return 0.0
+    return treetype === :fan ? 0.5 : 0.15
 end
 
 ## The recipe --------------------------------------------------------------------------
 
 function Makie.plot!(p::TreePlot)
     # fail early with a plain error, rather than from inside the compute graph
-    p.treetype[] in (:dendrogram, :fan) ||
-        throw(ArgumentError("Unsupported `treetype` $(repr(p.treetype[])); valid values are `:dendrogram` or `:fan`"))
+    p.treetype[] in (:dendrogram, :fan) || throw(_treetype_error(p.treetype[]))
 
     map!(treelayout, p, :tree, :tree_layout)
     map!(p, [:tree_layout, :treetype], [:branch_points, :branch_owner]) do l, tt
@@ -197,15 +257,10 @@ function Makie.plot!(p::TreePlot)
          [:shown, :marker_points, :marker_colors, :marker_sizes, :marker_groups,
           :label_points, :label_texts]) do tree, l, pts, shownodes, nc, ms, grp, lab, nanc, st
         shown = _shown_indices(l, shownodes, nc, ms, grp, lab)
-        colors = nc === nothing ? :black :
-                 _is_color_spec(nc) ? nc : _color_values(_per_node(nc, tree, l)[shown], nanc)
-        sizes = ms === nothing ? 8.0 : ms isa Real ? Float64(ms) :
-                Float64[v isa Real ? v : 0.0 for v in _per_node(ms, tree, l)[shown]]
+        colors = _marker_colors(nc, tree, l, shown, nanc)
+        sizes = _marker_sizes(ms, tree, l, shown)
         groups = grp === nothing ? nothing : _per_node(grp, tree, l)[shown]
-        texts = lab === nothing || lab === false ? fill("", length(shown)) :
-                # tips already carry their names when showtips is on
-                lab === true ? [st && l.isleaf[i] ? "" : l.names[i] for i in shown] :
-                _label_texts(_per_node(lab, tree, l)[shown])
+        texts = _marker_texts(lab, tree, l, shown, st)
         haslabel = .!isempty.(texts)
         return shown, pts[shown], colors, sizes, groups, pts[shown][haslabel], texts[haslabel]
     end
@@ -233,7 +288,7 @@ function Makie.plot!(p::TreePlot)
     # Text does not count towards axis limits; two invisible points widen them to fit
     # the tip names, like the xlims/ylims set by Phylo's recipe.
     map!(p, [:tree_layout, :treetype, :showtips, :tippad], :pad_points) do l, tt, st, pad
-        pad = pad === automatic ? (st ? (tt === :fan ? 0.5 : 0.15) : 0.0) : pad
+        pad = _tip_pad(pad, st, tt)
         H = maximum(l.height)
         if tt === :fan
             R = H * (1 + pad)

@@ -16,7 +16,7 @@ end
 
 """
     metric_tree(tree, res; metric, nodes, kwargs...)
-    metric_tree(tree, values::AbstractDict; nodes = keys(values), label = "value", kwargs...)
+    metric_tree(tree, values::AbstractDict; nodes=keys(values), label="value", kwargs...)
 
 The tree with a marker at each of `nodes`, coloured by its value, and a colour bar: the
 Makie version of Nodiv's `plot_gnd`. No other node gets a marker.
@@ -72,8 +72,8 @@ PATH (e.g. `brew install poppler`).
 """
 function node_panel_pdf(assemblage, tree, nodes, res, outfile; backend, kwargs...)
     if Sys.which("pdfunite") === nothing
-        throw(ErrorException("node_panel_pdf needs `pdfunite` (poppler) on the PATH, " *
-                             "e.g. `brew install poppler`"))
+        error("node_panel_pdf needs `pdfunite` (poppler) on the PATH, e.g. " *
+              "`brew install poppler`")
     end
     tmp = mktempdir()
     pages = String[]

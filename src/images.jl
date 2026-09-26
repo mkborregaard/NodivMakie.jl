@@ -122,8 +122,8 @@ function _fit_content(img::AbstractMatrix{RGBAf}, shape::Symbol; margin = 0.03, 
     idx = findall(p -> p.alpha >= 0.5, img)
     isempty(idx) && return _pad_to(img, maximum(size(img)))
     h, w = size(img)
+    (r1, r2), (c1, c2) = extrema(i[1] for i in idx), extrema(i[2] for i in idx)
     if shape === :circle
-        (r1, r2), (c1, c2) = extrema(i[1] for i in idx), extrema(i[2] for i in idx)
         centres = [((r1 + r2) / 2, (c1 + c2) / 2),
                    (sum(i[1] for i in idx) / length(idx), sum(i[2] for i in idx) / length(idx))]
         clip > 0 && (centres = centres[2:2])
@@ -143,7 +143,6 @@ function _fit_content(img::AbstractMatrix{RGBAf}, shape::Symbol; margin = 0.03, 
         end
         return _disc_mask(out)
     end
-    (r1, r2), (c1, c2) = extrema(i[1] for i in idx), extrema(i[2] for i in idx)
     sub = img[r1:r2, c1:c2]
     return _pad_to(sub, ceil(Int, maximum(size(sub)) * (1 + margin)))
 end
