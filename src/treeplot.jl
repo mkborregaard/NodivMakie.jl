@@ -485,18 +485,3 @@ function Makie.preferred_axis_attributes(::Type{Axis}, p::TreePlot)
         autolimitaspect=p.treetype[] === :fan ? 1 : nothing,
     )
 end
-
-# `Colorbar(fig[1, 2], p)`: the node colours if they are numeric, else the branches'.
-function Makie.extract_colormap(p::TreePlot)
-    for child in Iterators.reverse(p.plots)
-        child isa Union{Scatter,Lines} || continue
-        cm = Makie.extract_colormap(child)
-        cm isa Makie.ColorMapping && return cm
-    end
-    return nothing
-end
-
-# Legend entries are the node groups (if any), not the tree itself.
-function Makie.get_plots(p::TreePlot)
-    return filter(c -> c isa Scatter && haskey(c, :label) && !isnothing(c.label[]), p.plots)
-end

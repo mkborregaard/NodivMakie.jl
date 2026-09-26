@@ -16,10 +16,9 @@
     @test count(x -> x isa Poly, hm.scene.plots) == 4
     # the dendrogram: leaves at x = 0 beside heatmap rows 1:n, merges at minus their heights
     dend = only(filter(x -> x isa Axis && x.xlabel[] == "1 - |r|", fig.content))
-    linepoints(p) = if p isa Union{Lines,LineSegments}
-        Point2d.(p[1][])
-    else
-        reduce(vcat, map(linepoints, p.plots); init=Point2d[])
+    function linepoints(p)
+        p isa Union{Lines,LineSegments} && return Point2d.(p[1][])
+        return reduce(vcat, map(linepoints, p.plots); init=Point2d[])
     end
     pts = filter(q -> all(isfinite, q), reduce(vcat, map(linepoints, dend.scene.plots)))
     @test Set(round.(first.(pts); digits=9)) == Set([0; -c.hclust.heights])

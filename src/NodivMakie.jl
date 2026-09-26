@@ -4,9 +4,11 @@ using ColorTypes: alpha
 using EcoBase: EcoBase
 using EcoBase: coordinates, getcoords, occupancy, places, richness, xrange, yrange
 using FileIO: FileIO
+using GridLayoutBase: GridLayoutBase
+using GridLayoutBase: insertcols!
 using ImageIO: ImageIO      # loaded here so that FileIO can read PNG and JPEG images
 using Makie: Automatic, Colorant, Point2d, RGBAf, Vec2f
-using Makie: automatic, insertcols!, ncols, to_color
+using Makie: automatic, ncols, to_color
 using Reexport: @reexport
 
 @reexport using Makie
@@ -25,6 +27,7 @@ include("ordination.jl")
 include("explorer.jl")
 include("figures.jl")
 include("clusters.jl")
+include("compat.jl")
 
 export TreeLayout, treelayout
 export treeplot, treeplot!, TreePlot

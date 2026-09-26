@@ -36,8 +36,7 @@
     # the node shown: first child's clade in the high end of the SOS colours (positive
     # SOS = first child over-represented), second child's in the low end, rest grey
     cmap = Makie.to_colormap(:RdYlBu)
-    blue, red = Makie.interpolated_getindex(cmap, 0.85),
-    Makie.interpolated_getindex(cmap, 0.15)
+    blue, red = cladecolors(:RdYlBu)            # exact values tested with nodepanel
     branchcolor(n) = branchlines(tp).color[][findfirst(==(l.index[n]), tp.branch_owner[])]
     c1, c2 = [getnodename(tree, c) for c in getchildren(tree, "n1")]
     @test branchcolor(c1) == blue
@@ -65,7 +64,7 @@
     l3, tp3 = ex3.treeplot.tree_layout[], ex3.treeplot
     first_child = getnodename(tree, getchildren(tree, "n2")[1])
     col = branchlines(tp3).color[][findfirst(==(l3.index[first_child]), tp3.branch_owner[])]
-    @test col == Makie.interpolated_getindex(Makie.to_colormap(Reverse(:RdBu)), 0.85)
+    @test col == first(cladecolors(Reverse(:RdBu)))
     # focusinset = 0 gives the end colours
     fig4, ex4 = nodeexplorer(asm, tree, res; focusinset=0)
     tp4, l4 = ex4.treeplot, ex4.treeplot.tree_layout[]

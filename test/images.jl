@@ -201,11 +201,11 @@
         )
     end
     moveto((x0 + x1) / 2, (y0 + y1) / 2)
-    @test NodivMakie._over_image(ip)
+    @test NodivMakie._over_image(ip, ax.scene)
     @test ip.inspector_hover[](di, ip, 1) == true         # runs against Makie's inspector
     @test di.plot.text[] == ip.inspector_label[](ip, (1, 1), nothing)
     moveto(x0 + 0.03 * (x1 - x0), y0 + 0.03 * (y1 - y0)) # a transparent corner
-    @test !NodivMakie._over_image(ip)
+    @test !NodivMakie._over_image(ip, ax.scene)
     @test ip.inspector_hover[](di, ip, 1) == false
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     # a directory path works too, with options
@@ -282,9 +282,9 @@
     (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data
     o = np.axes[3].scene.viewport[].origin
     events(fig).mouseposition[] = (o[1] + (x0 + x1) / 2, o[2] + (y0 + y1) / 2)
-    @test NodivMakie._over_image(plots[1])
+    @test NodivMakie._over_image(plots[1], np.axes[3].scene)
     events(fig).mouseposition[] = (o[1] + x0 + 1, o[2] + y0 + 1)
-    @test !NodivMakie._over_image(plots[1])
+    @test !NodivMakie._over_image(plots[1], np.axes[3].scene)
     @test best("n1") == "a"                          # b has no image
     vp = np.axes[3].scene.viewport[]
     (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data

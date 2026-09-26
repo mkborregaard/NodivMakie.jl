@@ -108,13 +108,7 @@ function sos_cluster_heatmap(clusters::SOSClusters; title="", labelsize=9, figur
         yticklabelsize=labelsize,
     )
     # Leaf hc.order[k] at y = k, lined up with heatmap row k; each merge at its height
-    dendrogram!(
-        dend,
-        Makie.hcl_nodes(hc; useheight=true);
-        absolute=true,
-        rotation=:right,
-        color=:black,
-    )
+    dendrogram!(dend, _dendrogram_nodes(hc); absolute=true, rotation=:right, color=:black)
     h = heatmap!(hm, 1:n, 1:n, S; colormap=:viridis, colorrange=(0, 1))
     Colorbar(fig[1, 3], h; label="|r|")
 

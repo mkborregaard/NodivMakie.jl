@@ -42,9 +42,7 @@ for the first child (positive SOS: cells where the first child is over-represent
 the low end for the second, each taken `inset` in from the end.
 """
 function cladecolors(sos_colormap; inset=0.15)
-    cmap = Makie.to_colormap(sos_colormap)
-    return Makie.interpolated_getindex(cmap, 1.0 - inset),
-    Makie.interpolated_getindex(cmap, Float64(inset))
+    return _colormap_at(sos_colormap, 1 - inset), _colormap_at(sos_colormap, inset)
 end
 
 """

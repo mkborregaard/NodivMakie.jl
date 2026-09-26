@@ -45,14 +45,12 @@ function _outline_points!(pts, x, y, w, sx, sy, shape)
     return nothing
 end
 
-# Whether the cursor is over a visible pixel of an image plot (at least half opaque), so
-# the transparent surroundings of a bird do not count as the image
-function _over_image(plot)
-    scene = Makie.parent_scene(plot)
-    pos =
-        plot.space[] === :pixel ? Makie.mouseposition_px(scene) : Makie.mouseposition(scene)
+# Whether the cursor is over a visible pixel (at least half opaque) of an image plot in
+# `scene`, so the transparent surroundings of a bird do not count as the image
+function _over_image(plot, scene)
+    pos = plot.space[] === :pixel ? mouseposition_px(scene) : mouseposition(scene)
     (x0, x1), (y0, y1) = plot[1][].data, plot[2][].data
-    img = Makie._to_array(plot[3][])
+    img = plot[3][]
     u, v = (pos[1] - x0) / (x1 - x0), (pos[2] - y0) / (y1 - y0)
     (0 <= u < 1 && 0 <= v < 1) || return false
     i = clamp(floor(Int, u * size(img, 1)) + 1, 1, size(img, 1))
@@ -60,16 +58,16 @@ function _over_image(plot)
     return alpha(img[i, j]) >= 0.5
 end
 
-# Hovering over an image's visible pixels (with a `DataInspector`) shows `text` (a string
-# or an Observable of one) as a plain tooltip; over its transparent parts, whatever is
-# underneath is inspected instead. Makie's own image tooltip shows the pixel's colour and
-# marks the pixel; this shows only the text. The text is also the plot's `inspector_label`.
-function _image_hover!(p, text)
+# Hovering over the visible pixels of an image plot `p` in `scene` (with a
+# `DataInspector`) shows `text` (a string or an Observable of one) as a plain tooltip;
+# over its transparent parts, whatever is underneath is inspected instead. Makie's own
+# image tooltip shows the pixel's colour and marks the pixel; this shows only the text.
+# The text is also the plot's `inspector_label`.
+function _image_hover!(p, scene, text)
     p.inspector_label = (plot, idx, pos) -> string(to_value(text))
     p.inspector_hover = function (inspector, plot, idx)
-        _over_image(plot) || return false
-        pos = Point2f(Makie.mouseposition_px(inspector.root))
-        Makie.update_tooltip_alignment!(inspector, pos; text=string(to_value(text)))
+        _over_image(plot, scene) || return false
+        _show_tooltip!(inspector, string(to_value(text)))
         return true
     end
     p.inspectable = true
@@ -164,7 +162,7 @@ function treeimages!(
             ip = image!(
                 ax, (p[1] - s / 2) .. (p[1] + s / 2), (p[2] - s / 2) .. (p[2] + s / 2), img
             )
-            push!(plots, _image_hover!(ip, hovertext(c)))
+            push!(plots, _image_hover!(ip, ax.scene, hovertext(c)))
         end
         outline = Point2d[]
         for p in pts
@@ -197,8 +195,8 @@ function treeimages!(
         # -gap to 1 across the image column, and its width is set so that an image one
         # unit wide is as wide on screen as it is tall: images stay square however the
         # tree axis is shaped.
-        gc = ax.layoutobservables.gridcontent[]
-        gl, rows, col = gc.parent, gc.span.rows, gc.span.cols.stop + 1
+        gl, rows, cols = _grid_position(ax)
+        col = cols.stop + 1
         col <= ncols(gl) && insertcols!(gl, col, 1)
         g = 4gap
         imgax = Axis(
@@ -221,7 +219,7 @@ function treeimages!(
             img = _marker_image(images[c.shown], shape; fit, whitebackground, clip)
             y = centre(c)
             ip = image!(imgax, 0.0 .. 1.0, (y - s / 2) .. (y + s / 2), img)
-            push!(plots, _image_hover!(ip, hovertext(c)))
+            push!(plots, _image_hover!(ip, imgax.scene, hovertext(c)))
         end
         outline = Point2d[]
         for c in shown
@@ -258,7 +256,8 @@ end
 # the keyword arguments for the image functions
 function _image_options(imageoptions, default)
     rangesize = get(imageoptions, :rangesize, default)
-    return rangesize, Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})
+    rest = NamedTuple(k => v for (k, v) in pairs(imageoptions) if k !== :rangesize)
+    return rangesize, rest
 end
 
 """
@@ -321,7 +320,9 @@ function cladeimages!(
             px,
         )
         p = image!(ax.scene, xs, ys, img; space=:pixel, visible=lift(!isnothing, species))
-        _image_hover!(p, lift(sp -> sp === nothing ? "" : _display_name(sp), species))
+        _image_hover!(
+            p, ax.scene, lift(sp -> sp === nothing ? "" : _display_name(sp), species)
+        )
         translate!(p, 0, 0, 1)                   # above the map
         push!(plots, p)
     end

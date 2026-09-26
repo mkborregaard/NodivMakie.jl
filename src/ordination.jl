@@ -118,9 +118,6 @@ function Makie.preferred_axis_attributes(::Type{Axis}, ::OrdinationPlot)
     )
 end
 
-# `Colorbar(fig[1, 2], p)`: the colours of the points
-Makie.extract_colormap(p::OrdinationPlot) = Makie.extract_colormap(p.plots[1])
-
 """
     eigenvalueplot(ordination; kwargs...)
 

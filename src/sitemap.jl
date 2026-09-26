@@ -55,7 +55,7 @@ end
 function Makie.convert_arguments(
     T::Type{<:SiteMap}, stat::Symbol, asm::SpatialEcology.SEAssemblage
 )
-    return Makie.convert_arguments(T, asm.site.sitestats[!, stat], asm)
+    return Makie.convert_arguments(T, sitestats(asm)[!, stat], asm)
 end
 
 function Makie.plot!(p::SiteMap)

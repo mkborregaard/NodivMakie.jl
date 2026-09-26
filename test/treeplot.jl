@@ -1,9 +1,17 @@
 @testset "layout matches Phylo" begin
+    # the same positions as Phylo's Plots recipe, from its internal `_findxy`
+    function matches_phylo(t)
+        l = treelayout(t)
+        h, d, n = Phylo._findxy(t)
+        return l.names == [getnodename(t, x) for x in n] &&
+               l.height == [h[x] for x in n] &&
+               l.depth == [d[x] for x in n]
+    end
+    @test matches_phylo(tree)
+    Random.seed!(3)
+    @test all(matches_phylo(rand(Ultrametric(50))) for _ in 1:3)
+    @test all(matches_phylo(rand(Nonultrametric(40))) for _ in 1:3)
     l = treelayout(tree)
-    h, d, n = Phylo._findxy(tree)
-    @test l.names == [getnodename(tree, x) for x in n]
-    @test l.height == [h[x] for x in n]
-    @test l.depth == [d[x] for x in n]
     @test count(==(0), l.parent) == 1
     @test l.names[findfirst(==(0), l.parent)] == "root"
     @test l.names[l.parent[l.index["d"]]] == "n3"

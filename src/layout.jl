@@ -1,6 +1,6 @@
 # Node coordinates for drawing a tree. Positions are those of Phylo's own plot recipe
-# (`Phylo._findxy`), so figures match the Plots versions node for node, and a node
-# index here is the same as a position in Phylo's plotting order.
+# (see `_phylo_xy` in compat.jl), so figures match the Plots versions node for node, and a
+# node index here is the same as a position in Phylo's plotting order.
 
 """
     TreeLayout
@@ -30,7 +30,7 @@ end
 Compute the [`TreeLayout`](@ref) of a Phylo tree.
 """
 function treelayout(tree::Phylo.AbstractTree)
-    h, d, n = Phylo._findxy(tree)
+    h, d, n = _phylo_xy(tree)
     names = String[getnodename(tree, x) for x in n]
     index = Dict(name => i for (i, name) in enumerate(names))
     parent = [
