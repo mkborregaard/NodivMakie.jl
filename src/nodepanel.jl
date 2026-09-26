@@ -6,7 +6,7 @@
 """
     NodePanel
 
-The axes and plots of a [`nodepanel`](@ref). Set `panel.node[] = "name"` to show
+The axes and plots of a [`node_panel`](@ref). Set `panel.node[] = "name"` to show
 another node.
 
 - `node`: `Observable{String}` with the node shown
@@ -35,23 +35,23 @@ _node_observable(node::Observable) = node
 _node_observable(node) = Observable(String(node))
 
 """
-    cladecolors(sos_colormap; inset = 0.15) -> (first, second)
+    clade_colors(sos_colormap; inset = 0.15) -> (first, second)
 
 The colours standing for a node's two child clades: the high end of the SOS colour map
 for the first child (positive SOS: cells where the first child is over-represented) and
 the low end for the second, each taken `inset` in from the end.
 """
-function cladecolors(sos_colormap; inset=0.15)
+function clade_colors(sos_colormap; inset=0.15)
     return _colormap_at(sos_colormap, 1 - inset), _colormap_at(sos_colormap, inset)
 end
 
 """
-    hassos(tree, sos, node)
+    has_sos(tree, sos, node)
 
 Whether `node` can be shown in a node panel: it has an SOS vector in `sos` and at least
 two children.
 """
-function hassos(tree, sos, node)
+function has_sos(tree, sos, node)
     return haskey(sos, node) && hasnode(tree, node) && length(getchildren(tree, node)) >= 2
 end
 
@@ -71,7 +71,7 @@ function _node_panel_data(richness_of, tree, sos, node)
 end
 
 """
-    nodepanel!(gridposition, assemblage, tree, node, res; kwargs...)
+    node_panel!(gridposition, assemblage, tree, node, res; kwargs...)
 
 Draw the node panel for `node` (a node name or an `Observable` of one) into a figure
 position. `res` is a `NodeAnalysis`/`NodeMetrics` or a Dict of node name => SOS
@@ -82,20 +82,20 @@ Keyword arguments:
   `sos_colorrange = (-8, 8)`: the colours of `plot_node`
 - `colorbars = true`: a colour bar beside each map
 - `clademap = true`: draw the map of the node's own clade (top left). With `false` that
-  cell of `panel.layout` is left free, as the [`nodeexplorer`](@ref) does for its
+  cell of `panel.layout` is left free, as the [`node_explorer`](@ref) does for its
   ordination.
-- `titlecolors = true`: colour the child clades' map titles by [`cladecolors`](@ref), as
+- `titlecolors = true`: colour the child clades' map titles by [`clade_colors`](@ref), as
   the explorer colours their branches (`colorinset` as its `focusinset`)
 - `axis = (;)`: attributes for all four axes
 - `images = nothing`: species images for the child-clade maps, as a
   [`SpeciesImages`](@ref) or a directory; each gets its widest-ranging species with an
-  image in the top-right corner (see [`cladeimages!`](@ref)). Range sizes are taken from
+  image in the top-right corner (see [`clade_images!`](@ref)). Range sizes are taken from
   `assemblage` unless `imageoptions` has a `rangesize`.
-- `imageoptions = (;)`: keyword arguments for `cladeimages!`
+- `imageoptions = (;)`: keyword arguments for `clade_images!`
 
 Returns a [`NodePanel`](@ref).
 """
-function nodepanel!(
+function node_panel!(
     gp,
     assemblage,
     tree,
@@ -114,7 +114,7 @@ function nodepanel!(
 )
     sos = _sos_values(res)
     node = _node_observable(node)
-    hassos(tree, sos, node[]) || throw(
+    has_sos(tree, sos, node[]) || throw(
         ArgumentError("Node $(node[]) has no SOS in the result or fewer than two children"),
     )
 
@@ -122,7 +122,7 @@ function nodepanel!(
     richness_of = clade_richness(assemblage, tree)
     data = Observable(_node_panel_data(richness_of, tree, sos, node[]))
     on(node) do n
-        if hassos(tree, sos, n)
+        if has_sos(tree, sos, n)
             data[] = _node_panel_data(richness_of, tree, sos, n)
         else
             @warn "Node $n has no SOS in the result or fewer than two children; not shown"
@@ -158,42 +158,44 @@ function nodepanel!(
     end
     linkaxes!(filter(!isnothing, axes)...)
     if titlecolors
-        axes[3].titlecolor, axes[4].titlecolor = cladecolors(sos_colormap; inset=colorinset)
+        axes[3].titlecolor, axes[4].titlecolor = clade_colors(
+            sos_colormap; inset=colorinset
+        )
     end
     np = NodePanel(node, gl, axes, maps, cbs, sos)
     if images !== nothing
         rangesize, opts = _image_options(imageoptions, assemblage)
-        cladeimages!(np, tree, images, rangesize; opts...)
+        clade_images!(np, tree, images, rangesize; opts...)
     end
     return np
 end
 
 """
-    nodepanel(assemblage, tree, node, res; figure = (;), kwargs...)
+    node_panel(assemblage, tree, node, res; figure = (;), kwargs...)
 
-[`nodepanel!`](@ref) in a new figure. Returns `(figure, panel)`.
+[`node_panel!`](@ref) in a new figure. Returns `(figure, panel)`.
 """
-function nodepanel(assemblage, tree, node, res; figure=(;), kwargs...)
+function node_panel(assemblage, tree, node, res; figure=(;), kwargs...)
     fig = Figure(; size=(900, 800), figure...)
-    return fig, nodepanel!(fig[1, 1], assemblage, tree, node, res; kwargs...)
+    return fig, node_panel!(fig[1, 1], assemblage, tree, node, res; kwargs...)
 end
 
 """
-    sosmap!(gridposition, assemblage, node, res; kwargs...) -> (axis, map)
+    sos_map!(gridposition, assemblage, node, res; kwargs...) -> (axis, map)
 
 The SOS of `node` (a node name or an `Observable` of one) as a map with a colour bar,
 from the cached `res` (a `NodeAnalysis`/`NodeMetrics` or a Dict of node name => SOS
 vector). The map follows `node`; a node with no SOS in `res` leaves it as it was. With
-[`explorertree!`](@ref) this builds explorers with other panels, e.g. the SOS of the
+[`explorer_tree!`](@ref) this builds explorers with other panels, e.g. the SOS of the
 same node in two spaces side by side.
 
 Keyword arguments:
 - `title = "SOS"`: the axis title, or a function of the node name giving it
-- `colormap = :RdYlBu`, `colorrange = (-8, 8)`: as the SOS map of [`nodepanel!`](@ref)
+- `colormap = :RdYlBu`, `colorrange = (-8, 8)`: as the SOS map of [`node_panel!`](@ref)
 - `colorbar = true`: a colour bar beside the map
 - `axis = (;)`: attributes for the axis
 """
-function sosmap!(
+function sos_map!(
     gp,
     assemblage,
     node,

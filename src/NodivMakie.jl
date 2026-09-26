@@ -25,6 +25,24 @@ using Phylo: getchildren, getdescendants, getnodedata, getnodename, getparent, h
 using Phylo: hasnode, isleaf
 using SpatialEcology: sitestats
 
+export TreeLayout, tree_layout
+export treeplot, treeplot!, TreePlot
+export sitemap, sitemap!, SiteMap
+export node_panel, node_panel!, NodePanel, has_sos, clade_colors, sos_map!
+export node_explorer, NodeExplorer, node_at, on_node_click, focus_colors, link_explorers!
+export explorer_tree!, ExplorerTree
+export SpeciesImages, species_name, tree_images!, TreeImages, missing_images, clade_images!
+export image_geometry, image_clades, select_clades, CladeImage
+export ordinationplot, ordinationplot!, OrdinationPlot
+export eigenvalueplot, eigenvalueplot!, EigenvaluePlot
+export map_figure, metric_tree, node_panel_pdf
+export cluster_colors, cluster_tree, sos_cluster_heatmap
+
+# Deprecated
+export cladecolors, cladeimages!, explorertree!, focuscolors, hassos, imageclades
+export imagegeometry, missingimages, nodeat, nodeexplorer, nodepanel, nodepanel!
+export onnodeclick, selectclades, sosmap!, speciesname, treeimages!, treelayout
+
 include("layout.jl")
 include("treeplot.jl")
 include("sitemap.jl")
@@ -37,18 +55,6 @@ include("explorer.jl")
 include("figures.jl")
 include("clusters.jl")
 include("compat.jl")
-
-export TreeLayout, treelayout
-export treeplot, treeplot!, TreePlot
-export sitemap, sitemap!, SiteMap
-export nodepanel, nodepanel!, NodePanel, hassos, cladecolors, sosmap!
-export nodeexplorer, NodeExplorer, nodeat, onnodeclick, focuscolors, link_explorers!
-export explorertree!, ExplorerTree
-export SpeciesImages, speciesname, treeimages!, TreeImages, missingimages, cladeimages!
-export imagegeometry, imageclades, selectclades, CladeImage
-export ordinationplot, ordinationplot!, OrdinationPlot
-export eigenvalueplot, eigenvalueplot!, EigenvaluePlot
-export map_figure, metric_tree, node_panel_pdf
-export cluster_colors, cluster_tree, sos_cluster_heatmap
+include("deprecated.jl")
 
 end

@@ -8,8 +8,8 @@ The nodes of an `SOSOrdination` (from Nodiv's `sos_ordination`) as points on its
 two axes. Like `treeplot`'s, the per-node values (`nodecolor`, `nodelabels`) are a Dict
 of node name => value (nodes missing from it get `nan_color`, transparent by default), a
 vector in `ordination.nodes` order, or a function of the node name. `selected` marks one
-node with a ring. [`nodeat`](@ref) and [`onnodeclick`](@ref) work on it as on a tree,
-which is how the [`nodeexplorer`](@ref) selects a node from its ordination.
+node with a ring. [`node_at`](@ref) and [`on_node_click`](@ref) work on it as on a tree,
+which is how the [`node_explorer`](@ref) selects a node from its ordination.
 """
 @recipe OrdinationPlot (ordination,) begin
     "Point colour: a colour, or per-node values mapped through `colormap`."
@@ -61,7 +61,7 @@ function Makie.plot!(p::OrdinationPlot)
     map!(ms -> 1.8 * ms, p, :markersize, :ring_size)
 
     function hovertext(plt, i, _)
-        n = nodeat(p, plt, i)
+        n = node_at(p, plt, i)
         n === nothing && return ""
         f = p.hoverlabel[]
         return f === automatic ? n : string(f(n))
@@ -146,12 +146,12 @@ function Makie.preferred_axis_attributes(::Type{Axis}, ::EigenvaluePlot)
 end
 
 """
-    nodeat(ordinationplot, plot, index)
+    node_at(ordinationplot, plot, index)
 
 The node name under a pick result `(plot, index)` on an [`ordinationplot`](@ref): a
 point gives its node. Anything else gives `nothing`.
 """
-function nodeat(op::OrdinationPlot, plt, idx)
+function node_at(op::OrdinationPlot, plt, idx)
     (plt === nothing || idx === nothing || idx < 1) && return nothing
     plt === op.plots[1] || return nothing          # the points, not the ring or labels
     nodes = op.ordination[].nodes

@@ -1,7 +1,7 @@
 @testset "layout matches Phylo" begin
     # the same positions as Phylo's Plots recipe, from its internal `_findxy`
     function matches_phylo(t)
-        l = treelayout(t)
+        l = tree_layout(t)
         h, d, n = Phylo._findxy(t)
         return l.names == [getnodename(t, x) for x in n] &&
                l.height == [h[x] for x in n] &&
@@ -11,7 +11,7 @@
     Random.seed!(3)
     @test all(matches_phylo(rand(Ultrametric(50))) for _ in 1:3)
     @test all(matches_phylo(rand(Nonultrametric(40))) for _ in 1:3)
-    l = treelayout(tree)
+    l = tree_layout(tree)
     @test count(==(0), l.parent) == 1
     @test l.names[findfirst(==(0), l.parent)] == "root"
     @test l.names[l.parent[l.index["d"]]] == "n3"
@@ -43,7 +43,7 @@ end
 
 @testset "hover labels" begin
     fig, ax, p = treeplot(tree; markersize=10)
-    l = treelayout(tree)
+    l = tree_layout(tree)
     bl = only(filter(c -> c isa Lines, p.plots))
     mk = filter(c -> c isa Scatter, p.plots)[2]
     hover(plt, i) = plt.inspector_label[](plt, i, nothing)
@@ -56,7 +56,7 @@ end
 end
 
 @testset "node markers" begin
-    l = treelayout(tree)
+    l = tree_layout(tree)
     # scalar markersize -> internal nodes only (Phylo's rule)
     fig, ax, p = treeplot(tree; markersize=10)
     @test sort(l.names[p.shown[]]) == ["n1", "n2", "n3", "root"]

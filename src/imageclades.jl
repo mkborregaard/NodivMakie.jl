@@ -27,7 +27,7 @@ function _tip_spans(l::TreeLayout)
 end
 
 """
-    selectclades(layout, nslots; minclade = 0.5, circular = false) -> Vector{Int}
+    select_clades(layout, nslots; minclade = 0.5, circular = false) -> Vector{Int}
 
 Choose the clades (as `layout` indices, in tip order) to show one image each, with the
 tip edge divided into `nslots` equal slots of `w = ntips / nslots` tips. An image is one
@@ -50,7 +50,7 @@ The choice is exact: clades are taken in tip order, and each is joined to the be
 choice among the clades that end before it and whose centre is at least `w` before its
 own (a weighted interval scheduling over all clades).
 """
-function selectclades(l::TreeLayout, nslots::Integer; minclade=0.5, circular=false)
+function select_clades(l::TreeLayout, nslots::Integer; minclade=0.5, circular=false)
     lo, hi = _tip_spans(l)
     T = _ntips(l)
     w = T / clamp(nslots, 1, T)
@@ -139,20 +139,20 @@ end
 _by_range(species, rs) = sort(species; by=s -> (-get(rs, s, 0.0), s))
 
 """
-    imageclades(layout, nslots, rangesize, images; minclade, circular) -> Vector{CladeImage}
+    image_clades(layout, nslots, rangesize, images; minclade, circular) -> Vector{CladeImage}
 
-The clades chosen by [`selectclades`](@ref) (which takes the keyword arguments), each
+The clades chosen by [`select_clades`](@ref) (which takes the keyword arguments), each
 with its representative species: the one with the largest range size among those with an
 image in `images` (anything with `haskey`, e.g. a [`SpeciesImages`](@ref)). `rangesize` is
 a Dict of species => range size or an assemblage (range size = number of occupied cells).
 Ties go alphabetically.
 """
-function imageclades(l::TreeLayout, nslots::Integer, rangesize, images; kwargs...)
+function image_clades(l::TreeLayout, nslots::Integer, rangesize, images; kwargs...)
     rs = _range_sizes(rangesize)
     lo, hi = _tip_spans(l)
     tips = findall(l.isleaf)
     tipnames = l.names[tips[sortperm(l.depth[tips])]]    # by position along the tip edge
-    return map(selectclades(l, nslots; kwargs...)) do i
+    return map(select_clades(l, nslots; kwargs...)) do i
         sps = _by_range(tipnames[lo[i]:hi[i]], rs)
         k = findfirst(s -> haskey(images, s), sps)
         return CladeImage(
@@ -162,7 +162,7 @@ function imageclades(l::TreeLayout, nslots::Integer, rangesize, images; kwargs..
 end
 
 """
-    imagegeometry(layout, treetype; imagesize = automatic, nimages = automatic,
+    image_geometry(layout, treetype; imagesize = automatic, nimages = automatic,
                   gap = 0.04, spacing = 0.1, shape = :circle)
 
 How large the images are and how many fit, in the tree's data coordinates.
@@ -182,7 +182,7 @@ Passing `nimages` instead fixes the number, and the size follows from it.
 Returns `(; nimages, size, radius)`: `size` in data units (tip units for a dendrogram),
 `radius` the fan ring's centre radius (`NaN` for a dendrogram).
 """
-function imagegeometry(
+function image_geometry(
     l::TreeLayout,
     treetype::Symbol;
     imagesize=automatic,

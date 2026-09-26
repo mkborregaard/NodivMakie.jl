@@ -2,12 +2,12 @@
 # node explorer (tree on the left, node panel on the right, click to select).
 
 """
-    nodeat(treeplot, plot, index)
+    node_at(treeplot, plot, index)
 
 The node name under a pick result `(plot, index)` of `pick(scene, ...)`, or `nothing`.
 A node marker gives its node, and a branch gives the node it leads to.
 """
-function nodeat(tp::TreePlot, plt, idx)
+function node_at(tp::TreePlot, plt, idx)
     (plt === nothing || idx === nothing || idx < 1) && return nothing
     plt.parent === tp || return nothing
     names = tp.tree_layout[].names
@@ -25,23 +25,23 @@ function nodeat(tp::TreePlot, plt, idx)
 end
 
 """
-    onnodeclick(f, ax, plot; range = 10)
+    on_node_click(f, ax, plot; range = 10)
 
 Call `f(nodename)` when a node of `plot` in `ax` is left-clicked: a node marker or branch
 of a `treeplot`, or a point of an [`ordinationplot`](@ref). `range` is the pick radius in
 pixels. Needs an interactive backend (GLMakie, WGLMakie).
 """
-function onnodeclick(f, ax::Axis, p::Union{TreePlot,OrdinationPlot}; range=10)
-    return _onnodeclick(f, ax, p, pick; range)
+function on_node_click(f, ax::Axis, p::Union{TreePlot,OrdinationPlot}; range=10)
+    return _on_node_click(f, ax, p, pick; range)
 end
 
 # `pickfn` is the backend's `pick`; the tests swap in a stand-in, as CairoMakie cannot pick
-function _onnodeclick(f, ax::Axis, p, pickfn; range=10)
+function _on_node_click(f, ax::Axis, p, pickfn; range=10)
     scene = ax.scene
     return on(events(scene).mousebutton; priority=2) do ev
         (ev.button == Mouse.left && ev.action == Mouse.press) || return Consume(false)
         Makie.is_mouseinside(scene) || return Consume(false)
-        n = nodeat(p, pickfn(scene, events(scene).mouseposition[], range)...)
+        n = node_at(p, pickfn(scene, events(scene).mouseposition[], range)...)
         n === nothing && return Consume(false)
         f(n)
         return Consume(true)
@@ -49,7 +49,7 @@ function _onnodeclick(f, ax::Axis, p, pickfn; range=10)
 end
 
 """
-    focuscolors(tree, layout, node, sos_colormap, contextcolor; inset = 0.15)
+    focus_colors(tree, layout, node, sos_colormap, contextcolor; inset = 0.15)
 
 One branch colour per node of `layout` (a [`TreeLayout`](@ref)), for `treeplot`'s
 `branchcolor`. The clade of `node`'s first child is drawn in the high end of
@@ -62,8 +62,10 @@ This follows Nodiv's SOS: a node's SOS is the standardised richness of its FIRST
 per cell fixed. Positive SOS (the high end) marks cells where the first child is
 over-represented; negative SOS (the low end) marks cells where the second child is.
 """
-function focuscolors(tree, layout::TreeLayout, node, sos_colormap, contextcolor; inset=0.15)
-    high, low = cladecolors(sos_colormap; inset)
+function focus_colors(
+    tree, layout::TreeLayout, node, sos_colormap, contextcolor; inset=0.15
+)
+    high, low = clade_colors(sos_colormap; inset)
     colors = fill(to_color(contextcolor), length(layout))
     for (child, color) in zip(getchildren(tree, node)[1:2], (high, low))
         colors[layout.index[getnodename(tree, child)]] = color
@@ -77,7 +79,7 @@ end
 """
     ExplorerTree
 
-The tree side of an explorer, from [`explorertree!`](@ref): `node`, the `Observable` with
+The tree side of an explorer, from [`explorer_tree!`](@ref): `node`, the `Observable` with
 the node shown, `layout`, the `GridLayout` holding the label, tree and colour bar, the
 tree `axis` and `treeplot`, `status`, the text of the label above the tree, and `images`,
 the species images around the tree ([`TreeImages`](@ref)) or `nothing`.
@@ -92,14 +94,14 @@ struct ExplorerTree
 end
 
 """
-    explorertree!(gridposition, tree, node, marked; kwargs...)
+    explorer_tree!(gridposition, tree, node, marked; kwargs...)
 
 The tree side of an explorer, for building explorers with other panels. Draws the tree
 with markers on the nodes of `marked` (a Dict of node name => value), coloured by value,
 a label above it with the node shown and a colour bar below. `node` is an
 `Observable{String}` with the node shown: the two clades below it are drawn in the SOS
-colours (see [`focuscolors`](@ref)), and clicking a node marker or a branch sets it. Any
-panel that follows `node` then updates with the tree; see [`sosmap!`](@ref) for one.
+colours (see [`focus_colors`](@ref)), and clicking a node marker or a branch sets it. Any
+panel that follows `node` then updates with the tree; see [`sos_map!`](@ref) for one.
 
 Keyword arguments:
 - `selectable = n -> true`: whether a clicked node can be shown. A node that cannot is
@@ -109,17 +111,17 @@ Keyword arguments:
   every node's value to label unmarked nodes too
 - `label = "value"`: the name of the value, in the label and on the colour bar
 - `focuscolormap = :RdYlBu`: the SOS colour map the two clades take their colours from;
-  `focusinset` and `contextcolor` as for [`nodeexplorer`](@ref)
+  `focusinset` and `contextcolor` as for [`node_explorer`](@ref)
 - `treetype`, `showtips`, `colormap`, `colorrange`, `markersize`, `strokewidth`,
-  `strokecolor`, `treekw`, `pickfn`: as for [`nodeexplorer`](@ref)
+  `strokecolor`, `treekw`, `pickfn`: as for [`node_explorer`](@ref)
 - `images = nothing`: species images around the tree, as a [`SpeciesImages`](@ref) or a
   directory path, with range sizes from `rangesize` (e.g. the assemblage) and the keyword
-  arguments `imageoptions = (;)` for [`treeimages!`](@ref)
+  arguments `imageoptions = (;)` for [`tree_images!`](@ref)
 
 The hover labels (the node, its number of species and its value) show once the figure
 has a `DataInspector`. Returns an [`ExplorerTree`](@ref).
 """
-function explorertree!(
+function explorer_tree!(
     gp,
     tree,
     node::Observable{String},
@@ -152,8 +154,8 @@ function explorertree!(
     hidespines!(ax)
 
     # the node shown: its two clades in the SOS colours, the rest of the tree greyed
-    layout = treelayout(tree)
-    focus(n) = focuscolors(tree, layout, n, focuscolormap, contextcolor; inset=focusinset)
+    layout = tree_layout(tree)
+    focus(n) = focus_colors(tree, layout, n, focuscolormap, contextcolor; inset=focusinset)
     # markers only on the marked nodes: a NaN colour hides a marker's fill, not its outline
     tp = treeplot!(
         ax,
@@ -177,7 +179,7 @@ function explorertree!(
                 "Species images around the tree need `rangesize`, e.g. the assemblage"
             ),
         )
-        ti = treeimages!(ax, tp, images, rangesize; imageoptions...)
+        ti = tree_images!(ax, tp, images, rangesize; imageoptions...)
     end
     Colorbar(
         gl[3, 1],
@@ -194,7 +196,7 @@ function explorertree!(
     describe(n) = hasvalue(n) ? "$n   $(valuetext(n))" : n
     status[] = describe(node[])
     on(n -> (status[] = describe(n)), node)
-    _onnodeclick(ax, tp, pickfn) do n
+    _on_node_click(ax, tp, pickfn) do n
         if selectable(n)
             node[] = n
         else
@@ -214,7 +216,7 @@ end
 """
     NodeExplorer
 
-The parts of a [`nodeexplorer`](@ref): `figure`, the tree `axis` and `treeplot`, the
+The parts of a [`node_explorer`](@ref): `figure`, the tree `axis` and `treeplot`, the
 [`NodePanel`](@ref) `panel`, `status`, the text of the label above the tree,
 `images`, the species images around the tree ([`TreeImages`](@ref)) or `nothing`,
 `inspector`, the `DataInspector` showing hover labels (or `nothing`), and
@@ -250,12 +252,12 @@ _default_nodes(res::Nodiv.NodeAnalysis, metric) = divergent_nodes(res)
 _default_nodes(res, metric) = collect(keys(_sos_values(res)))   # a plain SOS Dict
 
 """
-    nodeexplorer(assemblage, tree, res; kwargs...)
+    node_explorer(assemblage, tree, res; kwargs...)
 
-The tree and a [`nodepanel`](@ref) side by side. The tree marks `nodes` coloured by
+The tree and a [`node_panel`](@ref) side by side. The tree marks `nodes` coloured by
 `metric`; clicking a marker or a branch shows that node in the panel. The two clades
 below the node shown are drawn in colours from the two ends of the SOS colour map (see
-[`focuscolors`](@ref)), and the rest of the tree in `contextcolor`. `res` is the cached
+[`focus_colors`](@ref)), and the rest of the tree in `contextcolor`. `res` is the cached
 `NodeMetrics`/`NodeAnalysis`.
 
 In the panel, the top-left cell shows an ordination of the marked nodes by the
@@ -281,15 +283,15 @@ Keyword arguments:
 - `focusinset = 0.15`: how far in from the ends of the SOS colour map the two clade
   colours are taken; 0 gives the end colours, larger is lighter
 - `images = nothing`: species images, as a [`SpeciesImages`](@ref) or a directory path:
-  drawn around the tree (see [`treeimages!`](@ref)) and in the corner of the two
-  child-clade maps at the same size (see [`cladeimages!`](@ref)). Range sizes are taken
+  drawn around the tree (see [`tree_images!`](@ref)) and in the corner of the two
+  child-clade maps at the same size (see [`clade_images!`](@ref)). Range sizes are taken
   from `assemblage` unless `imageoptions` has a `rangesize`.
-- `imageoptions = (;)`: keyword arguments for `treeimages!`; `shape`, `fit`,
+- `imageoptions = (;)`: keyword arguments for `tree_images!`; `shape`, `fit`,
   `whitebackground` and `clip` apply to the map images too
 - `ordination = true`: the ordination of the marked nodes in place of the clade map
 - `ordinationkw = (;)`: keyword arguments for Nodiv's `sos_ordination`, e.g. the
   `minoverlap` of `sos_distances` (default 3), which should be set for each space
-- `panel = (;)`: keyword arguments for `nodepanel!`
+- `panel = (;)`: keyword arguments for `node_panel!`
 - `figure = (;)`: attributes for the `Figure`
 - `inspector = true`: hovering shows a label (a `DataInspector`): on the tree and the
   ordination the node (for a branch, the node it leads to) with its number of species and
@@ -299,9 +301,9 @@ Keyword arguments:
 
 Returns `(figure, explorer)`; see [`NodeExplorer`](@ref). Clicking needs an interactive
 backend (`using GLMakie`); with CairoMakie you get the figure for the initial node.
-The tree side is [`explorertree!`](@ref), which builds explorers with other panels.
+The tree side is [`explorer_tree!`](@ref), which builds explorers with other panels.
 """
-function nodeexplorer(
+function node_explorer(
     assemblage,
     tree,
     res;
@@ -335,7 +337,7 @@ function nodeexplorer(
 
     fig = Figure(; size=(1600, 850), figure...)
     showordination = ordination && length(marked) >= 3
-    np = nodepanel!(
+    np = node_panel!(
         fig[1, 2],
         assemblage,
         tree,
@@ -345,14 +347,14 @@ function nodeexplorer(
     )
     rangesize, opts = _image_options(imageoptions, assemblage)
     images = _species_images(images)
-    et = explorertree!(
+    et = explorer_tree!(
         fig[1, 1],
         tree,
         np.node,
         marked;
         values=vals,
         label,
-        selectable=n -> hassos(tree, sos, n),
+        selectable=n -> has_sos(tree, sos, n),
         treetype,
         showtips,
         colormap,
@@ -375,7 +377,7 @@ function nodeexplorer(
         shared = NamedTuple(
             k => v for (k, v) in pairs(opts) if k in (:shape, :fit, :whitebackground, :clip)
         )
-        cladeimages!(np, tree, images, rangesize; pixelsize=et.images.pixelsize, shared...)
+        clade_images!(np, tree, images, rangesize; pixelsize=et.images.pixelsize, shared...)
     end
 
     op, oax = nothing, nothing
@@ -408,7 +410,7 @@ function _marked_nodes(res, tree, vals, nodes, metric)
     end
     marked = Dict(
         n => Float64(vals[n]) for
-        n in nodes if haskey(vals, n) && isfinite(vals[n]) && hassos(tree, sos, n)
+        n in nodes if haskey(vals, n) && isfinite(vals[n]) && has_sos(tree, sos, n)
     )
     isempty(marked) && throw(
         ArgumentError(
@@ -463,7 +465,7 @@ function _explorer_ordination!(
         hoverlabel=tp.hoverlabel[],
     )
     on(n -> (op.selected = n), np.node)
-    _onnodeclick(n -> (np.node[] = n), oax, op, pickfn)
+    _on_node_click(n -> (np.node[] = n), oax, op, pickfn)
     return op, oax
 end
 
@@ -471,7 +473,7 @@ end
     link_explorers!(tree, explorers...) -> Vector
 
 Link node explorers, e.g. of the same tree in different spaces: a node picked in one of
-`explorers` (see [`nodeexplorer`](@ref)) is shown in the others too, in those that have an
+`explorers` (see [`node_explorer`](@ref)) is shown in the others too, in those that have an
 SOS for it. Returns the observer functions, so the link can be undone with `off`.
 """
 function link_explorers!(tree, explorers::NodeExplorer...)
@@ -479,7 +481,7 @@ function link_explorers!(tree, explorers::NodeExplorer...)
     for from in explorers, to in explorers
         from === to && continue
         link = on(from.panel.node) do n
-            if n != to.panel.node[] && hassos(tree, to.panel.sos, n)
+            if n != to.panel.node[] && has_sos(tree, to.panel.sos, n)
                 to.panel.node[] = n
             end
         end

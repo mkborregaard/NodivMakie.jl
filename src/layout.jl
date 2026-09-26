@@ -25,11 +25,11 @@ struct TreeLayout
 end
 
 """
-    treelayout(tree)
+    tree_layout(tree)
 
 Compute the [`TreeLayout`](@ref) of a Phylo tree.
 """
-function treelayout(tree::Phylo.AbstractTree)
+function tree_layout(tree::Phylo.AbstractTree)
     h, d, n = _phylo_xy(tree)
     names = String[getnodename(tree, x) for x in n]
     index = Dict(name => i for (i, name) in enumerate(names))

@@ -2,19 +2,19 @@
 # is bundled with the package, as images are often copyrighted.
 
 """
-    speciesname(s)
+    species_name(s)
 
 The key species names and image file names are matched on: lower case, with runs of
 spaces, hyphens and underscores as one underscore. So `Carduelis_hornemanni`,
 `Carduelis hornemanni` and `carduelis-hornemanni` all match.
 """
-speciesname(s) = lowercase(replace(strip(String(s)), r"[\s_\-]+" => "_"))
+species_name(s) = lowercase(replace(strip(String(s)), r"[\s_\-]+" => "_"))
 
 """
     SpeciesImages(dir; extensions = (".png", ".jpg", ".jpeg"), maxpixels = 256)
 
 The species images in `dir`, one file per species, named by species (see
-[`speciesname`](@ref) for the matching). Images are loaded when first used, reduced to
+[`species_name`](@ref) for the matching). Images are loaded when first used, reduced to
 at most `maxpixels` on a side, and cached.
 
 `haskey(images, species)` tells whether a species has an image, and `images[species]`
@@ -22,7 +22,7 @@ gives it as a matrix of colours. Links whose target is missing are ignored.
 """
 struct SpeciesImages
     dir::String
-    files::Dict{String,String}          # speciesname => file
+    files::Dict{String,String}          # species_name => file
     maxpixels::Int
     cache::Dict{String,Matrix{RGBAf}}
 end
@@ -38,7 +38,7 @@ function SpeciesImages(
         base, ext = splitext(f)
         lowercase(ext) in exts || continue
         isfile(joinpath(dir, f)) || continue        # e.g. a link to a file not there (yet)
-        get!(files, speciesname(base), joinpath(dir, f))
+        get!(files, species_name(base), joinpath(dir, f))
     end
     return SpeciesImages(String(dir), files, maxpixels, Dict{String,Matrix{RGBAf}}())
 end
@@ -47,14 +47,14 @@ end
 _species_images(images::AbstractString) = SpeciesImages(images)
 _species_images(images) = images
 
-Base.haskey(imgs::SpeciesImages, species) = haskey(imgs.files, speciesname(species))
+Base.haskey(imgs::SpeciesImages, species) = haskey(imgs.files, species_name(species))
 Base.length(imgs::SpeciesImages) = length(imgs.files)
 function Base.show(io::IO, imgs::SpeciesImages)
     return print(io, "SpeciesImages(", length(imgs), " images in ", repr(imgs.dir), ")")
 end
 
 function Base.getindex(imgs::SpeciesImages, species)
-    key = speciesname(species)
+    key = species_name(species)
     haskey(imgs.files, key) || throw(KeyError(species))
     return get!(imgs.cache, key) do
         return _thumbnail(RGBAf.(FileIO.load(imgs.files[key])), imgs.maxpixels)

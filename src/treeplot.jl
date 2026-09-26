@@ -12,7 +12,7 @@
 #
 # Per-node specifications (branchcolor, nodecolor, markersize, nodegroup, nodelabels)
 # accept a Dict of node name => value (nodes not in it are left out / drawn with
-# `nan_color`), a vector in `treelayout(tree).names` order (length nnodes, or ninternal /
+# `nan_color`), a vector in `tree_layout(tree).names` order (length nnodes, or ninternal /
 # ntips for just those nodes), a String naming a Phylo node-data field, or a function of
 # the node name. A Symbol is always a colour name, never a node-data field.
 
@@ -22,7 +22,7 @@
 Plot a Phylo tree as a `:dendrogram` or `:fan`, optionally with coloured branches,
 node markers, node groups and node labels. See the attribute list below; per-node
 values are given as a `Dict` of node name => value, a vector in
-`treelayout(tree).names` order, a `String` node-data field, or a function of the
+`tree_layout(tree).names` order, a `String` node-data field, or a function of the
 node name.
 
 Node markers are drawn when any of `nodecolor`, `markersize` or `nodegroup` is set.
@@ -245,7 +245,7 @@ function Makie.plot!(p::TreePlot)
     # fail early with a plain error, rather than from inside the compute graph
     p.treetype[] in (:dendrogram, :fan) || throw(_treetype_error(p.treetype[]))
 
-    map!(treelayout, p, :tree, :tree_layout)
+    map!(tree_layout, p, :tree, :tree_layout)
     map!(p, [:tree_layout, :treetype], [:branch_points, :branch_owner]) do l, tt
         return _branch_paths(l, tt)
     end
@@ -349,7 +349,7 @@ function Makie.plot!(p::TreePlot)
 
     # hover text for the markers and branches: the node under the cursor
     function hovertext(plt, i, _)
-        n = nodeat(p, plt, i)
+        n = node_at(p, plt, i)
         n === nothing && return ""
         f = p.hoverlabel[]
         f === automatic || return string(f(n))

@@ -9,9 +9,9 @@
     )
     write(joinpath(dir, "notes.txt"), "not an image")
 
-    @test speciesname("Carduelis_hornemanni") ==
-        speciesname("carduelis  Hornemanni") ==
-        speciesname("Carduelis-hornemanni") ==
+    @test species_name("Carduelis_hornemanni") ==
+        species_name("carduelis  Hornemanni") ==
+        species_name("Carduelis-hornemanni") ==
         "carduelis_hornemanni"
     imgs = SpeciesImages(dir; maxpixels=64)
     @test length(imgs) == 2
@@ -61,7 +61,7 @@
     @test !haskey(SpeciesImages(dir), "ghost")
 
     # tip spans: every clade is a contiguous run of tips
-    l = treelayout(tree)
+    l = tree_layout(tree)
     lo, hi = NodivMakie._tip_spans(l)
     @test (lo[l.index["root"]], hi[l.index["root"]]) == (1, 5)
     for (i, n) in enumerate(l.names)
@@ -73,9 +73,9 @@
     for seed in 1:5, nslots in (3, 10, 40), m in (1.0, 0.5)
         Random.seed!(seed)
         rt = rand(Ultrametric(200))
-        rl = treelayout(rt)
+        rl = tree_layout(rt)
         rlo, rhi = NodivMakie._tip_spans(rl)
-        ch = selectclades(rl, nslots; minclade=m, circular=true)
+        ch = select_clades(rl, nslots; minclade=m, circular=true)
         w = 200 / nslots
         @test !isempty(ch)
         @test all(i -> rhi[i] - rlo[i] + 1 >= m * w - 1e-9, ch)
@@ -90,7 +90,7 @@
     for seed in 1:4, nslots in (2, 3, 5), m in (1.0, 0.5)
         Random.seed!(seed)
         st = rand(Ultrametric(9))
-        sl = treelayout(st)
+        sl = tree_layout(st)
         slo, shi = NodivMakie._tip_spans(sl)
         w = 9 / nslots
         cand = findall(i -> shi[i] - slo[i] + 1 >= m * w - 1e-9, eachindex(slo))
@@ -112,7 +112,7 @@
                 (0, 0)
             end
         end
-        ch = selectclades(sl, nslots; minclade=m)
+        ch = select_clades(sl, nslots; minclade=m)
         @test (length(ch), sum(i -> shi[i] - slo[i] + 1, ch; init=0)) == best
     end
     # a lone species sister to a big clade does not pull the big clade into one image
@@ -120,13 +120,13 @@
         "(x:3,(((a:1,b:1)ab:1,(c:1,d:1)cd:1)abcd:1," *
         "((e:1,f:1)ef:1,(g:1,h:1)gh:1)efgh:1)big:1)root;",
     )
-    ll = treelayout(lone)
+    ll = tree_layout(lone)
     for m in (1.0, 0.5)
-        chosen = ll.names[selectclades(ll, 4; minclade=m)]
+        chosen = ll.names[select_clades(ll, 4; minclade=m)]
         @test !("root" in chosen) && !("big" in chosen)
         @test issubset(["abcd", "efgh"], chosen)
     end
-    @test selectclades(ll, 1; minclade=1) == [ll.index["root"]]
+    @test select_clades(ll, 1; minclade=1) == [ll.index["root"]]
 
     # representatives: largest range among the species with an image
     rs = Dict(
@@ -141,7 +141,7 @@
         "x" => 1,
     )
     has = Dict(s => true for s in ["a", "c", "d", "e", "g", "h", "x"])   # no b, no f
-    cis = imageclades(ll, 4, rs, has)
+    cis = image_clades(ll, 4, rs, has)
     byclade = Dict(c.clade => c for c in cis)
     if haskey(byclade, "abcd")
         @test byclade["abcd"].species == "b"       # largest range overall
@@ -154,16 +154,16 @@
     # geometry: images fit with their spacing
     Random.seed!(1)
     rt = rand(Ultrametric(300))
-    rl = treelayout(rt)
-    g = imagegeometry(rl, :fan)
+    rl = tree_layout(rt)
+    g = image_geometry(rl, :fan)
     Δ = 2pi * 300 / 301 / g.nimages
     @test 2g.radius * sin(Δ / 2) >= 1.1 * g.size - 1e-9
     @test g.size ≈ 0.15 * maximum(rl.height)
-    g2 = imagegeometry(rl, :fan; nimages=20)
+    g2 = image_geometry(rl, :fan; nimages=20)
     @test g2.nimages == 20
-    @test imagegeometry(rl, :fan; imagesize=g2.size / maximum(rl.height)).nimages >= 20
-    @test imagegeometry(rl, :fan; shape=:square).nimages < g.nimages
-    gd = imagegeometry(rl, :dendrogram)
+    @test image_geometry(rl, :fan; imagesize=g2.size / maximum(rl.height)).nimages >= 20
+    @test image_geometry(rl, :fan; shape=:square).nimages < g.nimages
+    gd = image_geometry(rl, :dendrogram)
     @test gd.nimages * gd.size * 1.1 <= 300 + 1e-9
 
     # drawing: a ring around a fan
@@ -177,12 +177,12 @@
     rimgs = SpeciesImages(rdir)
     rrs = Dict("tip $t" => t for t in 1:300)
     fig, ax, tp = treeplot(rt; treetype=:fan, showtips=false)
-    ti = treeimages!(ax, tp, rimgs, rrs)
+    ti = tree_images!(ax, tp, rimgs, rrs)
     @test ti isa TreeImages
     @test length(ti.clades) >= 10
     @test all(c -> c.shown === nothing || haskey(rimgs, c.shown), ti.clades)
     @test count(p -> p isa Image, ti.plots) == count(c -> c.shown !== nothing, ti.clades)
-    @test missingimages(ti) == [c.species for c in ti.clades if c.shown === nothing]
+    @test missing_images(ti) == [c.species for c in ti.clades if c.shown === nothing]
     # hovering over an image names its species and clade
     c1 = first(filter(c -> c.shown !== nothing, ti.clades))
     ip = first(filter(p -> p isa Image, ti.plots))
@@ -210,13 +210,13 @@
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     # a directory path works too, with options
     fig, ax, tp = treeplot(rt; treetype=:fan, showtips=false)
-    ti = treeimages!(ax, tp, rdir, rrs; nimages=12, shape=:square, showclades=true)
+    ti = tree_images!(ax, tp, rdir, rrs; nimages=12, shape=:square, showclades=true)
     @test length(ti.clades) <= 12
     @test size(Makie.colorbuffer(fig)) != (0, 0)
 
     # a column beside a dendrogram, square on screen
     fig, ax, tp = treeplot(rt; showtips=false)
-    ti = treeimages!(ax, tp, rimgs, rrs)
+    ti = tree_images!(ax, tp, rimgs, rrs)
     @test ti.axis !== ax
     Makie.colorbuffer(fig)
     imgax = ti.axis
@@ -232,7 +232,7 @@
             joinpath(edir, "$sp.png"), [RGBAf(0.8, 0.2, 0.2, 1) for i in 1:20, j in 1:20]
         )
     end
-    fig, ex = nodeexplorer(asm, tree, res; images=edir)
+    fig, ex = node_explorer(asm, tree, res; images=edir)
     @test ex.images isa TreeImages
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     @test !any(p -> p isa Lines, ex.images.plots)          # no outline by default
@@ -248,15 +248,15 @@
         @test p.visible[] == false || -(reverse(p[1][].data)...) ≈ w
     end
 
-    # cladeimages!: each child clade's largest-range species with an image
+    # clade_images!: each child clade's largest-range species with an image
     eimgs = SpeciesImages(edir)
     ranges = NodivMakie._range_sizes(asm)
     best(clade) = (
         sps=filter(s -> haskey(eimgs, s), nodespecies(tree, clade));
         isempty(sps) ? nothing : first(sort(sps; by=s -> (-ranges[s], s)))
     )
-    fig, np = nodepanel(asm, tree, "root", res)
-    plots = cladeimages!(np, tree, eimgs, asm; pixelsize=50)
+    fig, np = node_panel(asm, tree, "root", res)
+    plots = clade_images!(np, tree, eimgs, asm; pixelsize=50)
     Makie.colorbuffer(fig)
     function check(node)
         np.node[] = node
@@ -290,18 +290,18 @@
     (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data
     @test x1 ≈ vp.widths[1] - 6 && y1 ≈ vp.widths[2] - 6   # in the top-right corner
     @test x1 - x0 ≈ 50 && y1 - y0 ≈ 50
-    # via nodepanel's keyword
-    fig, np = nodepanel(asm, tree, "root", res; images=edir, imageoptions=(; pixelsize=40))
+    # via node_panel's keyword
+    fig, np = node_panel(asm, tree, "root", res; images=edir, imageoptions=(; pixelsize=40))
     @test count(p -> p isa Image && p.space[] === :pixel, np.axes[4].scene.plots) == 1
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     # range sizes other than the assemblage's: e, not c, stands for n2 (c, d, e)
     ranked = Dict("a" => 1, "c" => 1, "e" => 10)
     pximage(ax) = only(filter(p -> p isa Image && p.space[] === :pixel, ax.scene.plots))
-    fig, np = nodepanel(
+    fig, np = node_panel(
         asm, tree, "root", res; images=edir, imageoptions=(; rangesize=ranked)
     )
     @test pximage(np.axes[3])[3][] == NodivMakie._marker_image(eimgs["e"], :circle)
-    fig, ex = nodeexplorer(
+    fig, ex = node_explorer(
         asm,
         tree,
         res;
@@ -312,6 +312,6 @@
     )
     @test pximage(ex.panel.axes[3])[3][] == NodivMakie._marker_image(eimgs["e"], :circle)
     @test "e" in [c.shown for c in ex.images.clades]
-    fig, ex = nodeexplorer(asm, tree, res)
+    fig, ex = node_explorer(asm, tree, res)
     @test ex.images === nothing
 end

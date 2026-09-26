@@ -4,13 +4,13 @@
 """
     TreeImages
 
-The species images drawn by [`treeimages!`](@ref).
+The species images drawn by [`tree_images!`](@ref).
 - `clades`: one [`CladeImage`](@ref) per image position, in tip order
-- `geometry`: `(; nimages, size, radius)` from [`imagegeometry`](@ref)
+- `geometry`: `(; nimages, size, radius)` from [`image_geometry`](@ref)
 - `axis`: the axis the images are in (for a dendrogram, a narrow axis beside the tree)
 - `plots`: the image plots
 - `pixelsize`: `Observable` of the images' width on screen, in pixels (it follows the
-  figure's size); e.g. for images elsewhere at the same size, see [`cladeimages!`](@ref)
+  figure's size); e.g. for images elsewhere at the same size, see [`clade_images!`](@ref)
 """
 struct TreeImages
     clades::Vector{CladeImage}
@@ -21,12 +21,12 @@ struct TreeImages
 end
 
 """
-    missingimages(treeimages) -> Vector{String}
+    missing_images(ti::TreeImages) -> Vector{String}
 
 The species to find images for: for every image position where none of the clade's
 species has an image, the clade's species with the largest range.
 """
-missingimages(ti::TreeImages) = [c.species for c in ti.clades if c.shown === nothing]
+missing_images(ti::TreeImages) = [c.species for c in ti.clades if c.shown === nothing]
 
 # An outline around an image of width `w` centred at (x, y) in axis units `sx`, `sy`
 # per unit of width (as a polyline, so it stays a circle on screen however the axis
@@ -77,7 +77,7 @@ end
 _display_name(sp) = replace(sp, "_" => " ")
 
 """
-    treeimages!(ax, treeplot, images, rangesize; kwargs...) -> TreeImages
+    tree_images!(ax, treeplot, images, rangesize; kwargs...) -> TreeImages
 
 Draw species images around a `treeplot` in `ax`: a ring outside a fan tree, or a
 column right of a dendrogram (in a narrow axis added beside `ax`, linked in y).
@@ -87,16 +87,16 @@ column right of a dendrogram (in a narrow axis added beside `ax`, linked in y).
 - `rangesize`: an assemblage (range size = number of occupied cells) or a Dict of
   species => range size.
 
-How many images fit follows from their size (see [`imagegeometry`](@ref)); that many
+How many images fit follows from their size (see [`image_geometry`](@ref)); that many
 equal slots divide the tips. Then as many disjoint clades as possible are chosen, each at
 least `minclade` of a slot wide and with centres at least a slot apart, so images never
-overlap (see [`selectclades`](@ref)). Each is shown by an image at its centre: its
+overlap (see [`select_clades`](@ref)). Each is shown by an image at its centre: its
 largest-range species that has an image. Positions where no species has an image are
-left empty; use [`missingimages`](@ref) to list the species to find images for.
+left empty; use [`missing_images`](@ref) to list the species to find images for.
 
 Keyword arguments:
 - `imagesize`, `nimages`, `gap = 0.04`, `spacing = 0.1`: size and number of images, see
-  [`imagegeometry`](@ref)
+  [`image_geometry`](@ref)
 - `minclade = 0.5`: the smallest clade given an image, as a fraction of a slot. Lower
   gives more images standing for smaller clades; 1 makes every clade fill its slot.
 - `shape = :circle`: `:circle` or `:square` images
@@ -112,14 +112,14 @@ Keyword arguments:
 - `showclades = false`: draw a thin line along the tips each image stands for, in
   `cladecolor = :gray50`
 
-For a fan, the axis must keep a 1:1 aspect (`treeplot` and `nodeexplorer` set this when
+For a fan, the axis must keep a 1:1 aspect (`treeplot` and `node_explorer` set this when
 they create the axis). Turn tip labels off (`showtips = false`), as the images take
 their place.
 
 Hovering over a bird (with a `DataInspector`) shows its species and the clade it stands
 for; its transparent surroundings do not count.
 """
-function treeimages!(
+function tree_images!(
     ax::Axis,
     tp::TreePlot,
     images,
@@ -142,12 +142,12 @@ function treeimages!(
         throw(ArgumentError("`shape` must be :circle or :square"))
     images = _species_images(images)
     l, tt = tp.tree_layout[], tp.treetype[]
-    geo = imagegeometry(l, tt; imagesize, nimages, gap, spacing, shape)
-    clades = imageclades(l, geo.nimages, rangesize, images; minclade, circular=tt === :fan)
+    geo = image_geometry(l, tt; imagesize, nimages, gap, spacing, shape)
+    clades = image_clades(l, geo.nimages, rangesize, images; minclade, circular=tt === :fan)
     nmissing = count(c -> c.shown === nothing, clades)
     nmissing > 0 &&
         @info "$nmissing of $(length(clades)) image positions have no image for any " *
-            "species of their clade; `missingimages` lists the species to find"
+            "species of their clade; `missing_images` lists the species to find"
     centre(c) = (first(c.tips) + last(c.tips)) / 2
     hovertext(c) = "$(_display_name(c.shown))\nfor $(c.clade) ($(length(c.tips)) species)"
     shown = filter(c -> c.shown !== nothing, clades)
@@ -261,24 +261,24 @@ function _image_options(imageoptions, default)
 end
 
 """
-    cladeimages!(panel, tree, images, rangesize; pixelsize = 60, kwargs...) -> Vector
+    clade_images!(panel, tree, images, rangesize; pixelsize = 60, kwargs...) -> Vector
 
 Put a species image in the top-right corner of the two child-clade richness maps of a
 [`NodePanel`](@ref): each clade's species with the largest range size that has an image.
 The images follow the node shown, and a clade with no image gets none.
 
-- `images`, `rangesize`: as for [`treeimages!`](@ref)
+- `images`, `rangesize`: as for [`tree_images!`](@ref)
 - `pixelsize = 60`: the images' width on screen, in pixels, or an `Observable` of it (the
   explorer passes its tree images' `pixelsize`, so both are the same size)
 - `margin = 6`: the gap to the map's corner, in pixels
-- `shape`, `fit`, `whitebackground`, `clip`: as for [`treeimages!`](@ref)
+- `shape`, `fit`, `whitebackground`, `clip`: as for [`tree_images!`](@ref)
 
 The images are drawn in the maps' screen space: they keep their place and size when the
 maps are zoomed or panned. Hovering over the bird (with a `DataInspector`) shows its
 species.
 Returns the two image plots.
 """
-function cladeimages!(
+function clade_images!(
     np::NodePanel,
     tree,
     images,

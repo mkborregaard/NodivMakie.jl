@@ -51,7 +51,7 @@ How Phylo's Plots attributes translate:
 Per-node values (`branchcolor`, `nodecolor`, `markersize`, `nodegroup`, `nodelabels`) can be:
 
 - a `Dict` of node name => value;
-- a vector in `treelayout(tree).names` order, of length nnodes, ninternal or ntips;
+- a vector in `tree_layout(tree).names` order, of length nnodes, ninternal or ntips;
 - a `String` naming a Phylo node-data field;
 - a function of the node name.
 
@@ -87,7 +87,7 @@ map_figure(assemblage; title = "Richness", label = "species")   # with a colour 
 Missing and NaN values are transparent (`nan_color`). The values are the plot's first
 argument, so `p[1] = newvalues` redraws the map in place.
 
-## The node panel: `nodepanel`
+## The node panel: `node_panel`
 
 The Makie version of Nodiv's `plot_node`. It is a 2×2 grid:
 - top left: the richness of the node's clade;
@@ -98,7 +98,7 @@ The four map axes are linked, so zooming one zooms them all. The panel reads the
 cached SOS in `res` and never recomputes the analysis.
 
 ```julia
-fig, np = nodepanel(assemblage, tree, "Node 123", res)
+fig, np = node_panel(assemblage, tree, "Node 123", res)
 np.node[] = "Node 456"                    # redraws in place
 ```
 
@@ -106,7 +106,7 @@ The two child-clade map titles are coloured like the clades' branches in the exp
 the first child in the high (blue) end of the SOS colour map, the second in the low (red)
 end (`titlecolors = false` to turn this off).
 
-`nodepanel!(fig[1, 2], ...)` puts the panel into any layout position. `np.node` is an
+`node_panel!(fig[1, 2], ...)` puts the panel into any layout position. `np.node` is an
 `Observable{String}`, so anything can drive it. `clademap = false` leaves out the clade
 map and keeps its cell (`np.layout[1, 1]`) free; `np.axes[1]` is then `nothing`.
 
@@ -116,14 +116,14 @@ assemblage once per panel, so switching nodes is fast on large grids.
 `node_panel_pdf(assemblage, tree, nodes, res, "panels.pdf"; backend = CairoMakie)` writes
 the panels of many nodes to one PDF, a node per page (it needs `pdfunite`, from poppler).
 
-## Linked tree and maps: `nodeexplorer`
+## Linked tree and maps: `node_explorer`
 
 ```julia
 using GLMakie
-fig, ex = nodeexplorer(assemblage, tree, res)
+fig, ex = node_explorer(assemblage, tree, res)
 # or another threshold, or every node with an SOS
-fig, ex = nodeexplorer(assemblage, tree, res; nodes = divergent_nodes(res; threshold = 2))
-fig, ex = nodeexplorer(assemblage, tree, res; nodes = :all)
+fig, ex = node_explorer(assemblage, tree, res; nodes = divergent_nodes(res; threshold = 2))
+fig, ex = node_explorer(assemblage, tree, res; nodes = :all)
 ```
 
 The fan tree marks the divergent nodes, coloured by the divergence metric, with the node
@@ -161,28 +161,28 @@ overlap of 3 cells. Set it for the space with `ordinationkw = (; minoverlap = 8)
 fewer than three marked nodes, or `ordination = false`, the panel shows the clade map.
 
 The building blocks can be used on their own:
-- `onnodeclick(f, ax, plot)` calls `f(nodename)` on a click on a tree or ordination.
-- `nodeat(plot, pickedplot, index)` turns a `pick` result into a node name.
-- `hassos(tree, sos, node)` tells whether a node can be shown in a panel.
-- `focuscolors(tree, layout, node, sos_colormap, contextcolor)` gives the per-branch
+- `on_node_click(f, ax, plot)` calls `f(nodename)` on a click on a tree or ordination.
+- `node_at(plot, pickedplot, index)` turns a `pick` result into a node name.
+- `has_sos(tree, sos, node)` tells whether a node can be shown in a panel.
+- `focus_colors(tree, layout, node, sos_colormap, contextcolor)` gives the per-branch
   colours used for the selected node.
 - `link_explorers!(tree, explorers...)` links explorers of the same tree, e.g. in two
   spaces: a node picked in one is shown in the others that have an SOS for it.
-- `explorertree!(gridposition, tree, node, marked)` is the tree side of the explorer on
+- `explorer_tree!(gridposition, tree, node, marked)` is the tree side of the explorer on
   its own: the marked tree, the label and the colour bar, with clicks setting `node`, an
   `Observable` of the node shown. Anything that follows `node` makes up the other panels,
-  e.g. `sosmap!(gridposition, assemblage, node, res)`, the SOS map of the node shown.
-  `nodeexplorer` is `explorertree!` with a `nodepanel!` beside it.
+  e.g. `sos_map!(gridposition, assemblage, node, res)`, the SOS map of the node shown.
+  `node_explorer` is `explorer_tree!` with a `node_panel!` beside it.
 
 ```julia
 fig = Figure(size = (1600, 850))
 node = Observable("Node 123")
 # the same tree analysed in two spaces, e.g. geographic and environmental
-tr = explorertree!(fig[1, 1], tree, node, Dict(n => res1.rms[n] for n in divergent_nodes(res1));
+tr = explorer_tree!(fig[1, 1], tree, node, Dict(n => res1.rms[n] for n in divergent_nodes(res1));
                    label = "rms",
-                   selectable = n -> hassos(tree, res1.sos, n) && hassos(tree, res2.sos, n))
-sosmap!(fig[1, 2], assemblage1, node, res1; title = "SOS, space 1")
-sosmap!(fig[1, 3], assemblage2, node, res2; title = "SOS, space 2")
+                   selectable = n -> has_sos(tree, res1.sos, n) && has_sos(tree, res2.sos, n))
+sos_map!(fig[1, 2], assemblage1, node, res1; title = "SOS, space 1")
+sos_map!(fig[1, 3], assemblage2, node, res2; title = "SOS, space 2")
 DataInspector(fig)
 ```
 
@@ -214,7 +214,7 @@ nodes are mostly unrelated in SOS pattern, all distances are near 1 and the poin
 a ring. That is the finding, not a failure of the method.
 
 `ordinationplot` takes per-node `nodecolor` and `nodelabels` like `treeplot`, and
-`selected` rings a node. `nodeat` and `onnodeclick` work on it as on a tree.
+`selected` rings a node. `node_at` and `on_node_click` work on it as on a tree.
 
 ## Clusters by SOS similarity: `sos_cluster_heatmap`, `cluster_tree`
 
@@ -233,7 +233,7 @@ of more than one node on the diagonal. `cluster_tree` marks the nodes of those c
 on the tree. Both number and colour the clusters alike (`cluster_colors`), so the two can
 be read against each other.
 
-## Species images: `treeimages!`
+## Species images: `tree_images!`
 
 Species images drawn as a ring around a fan tree, or as a column right of a dendrogram.
 No images come with the package, as they are often copyrighted. You supply a directory
@@ -242,11 +242,11 @@ ignores case and treats spaces, hyphens and underscores alike. PNG and JPEG are 
 
 ```julia
 fig, ax, tp = treeplot(tree; treetype = :fan, showtips = false)
-ti = treeimages!(ax, tp, "path/to/images", assemblage)   # range sizes from the assemblage
-missingimages(ti)            # species to find images for, one per empty position
+ti = tree_images!(ax, tp, "path/to/images", assemblage)   # range sizes from the assemblage
+missing_images(ti)            # species to find images for, one per empty position
 
 # in the explorer
-fig, ex = nodeexplorer(assemblage, tree, res; images = "path/to/images")
+fig, ex = node_explorer(assemblage, tree, res; images = "path/to/images")
 ```
 
 Which species are shown:
@@ -262,7 +262,7 @@ Which species are shown:
    taken, and then the one covering the most species. So a clade too small for its own
    image joins its sister in their parent's image where that costs no image, and a clade
    wider than a slot leaves gaps beside its image. The choice is exact (see
-   `selectclades`).
+   `select_clades`).
 3. **Which species.** Each clade is shown by its species with the largest range size
    (occupied cells in the assemblage, or a Dict you pass) that has an image. Where none of
    a clade's species has an image, the position is left empty.
@@ -284,11 +284,11 @@ y, so they stay square however the tree axis is shaped.
 
 ### In the node panel
 
-`cladeimages!(panel, tree, images, rangesize)` puts an image of each child clade's
+`clade_images!(panel, tree, images, rangesize)` puts an image of each child clade's
 widest-ranging species (with an image) in the top-right corner of its richness map. The
 images follow the node shown. They are fixed in screen space, so zooming the maps leaves
-them in place, and their size is `pixelsize`. `nodepanel(...; images = dir)` does this
-directly. In `nodeexplorer(...; images = dir)` they are always the same size as the images
+them in place, and their size is `pixelsize`. `node_panel(...; images = dir)` does this
+directly. In `node_explorer(...; images = dir)` they are always the same size as the images
 around the tree.
 
 ## Plot geometry
@@ -299,7 +299,7 @@ A `treeplot` keeps its computed geometry on the plot object:
 - `p.shown[]` holds the layout indices of the nodes with markers;
 - `p.branch_owner[]` gives, for each branch vertex, the node that branch leads to.
 
-`nodeat` is built on these.
+`node_at` is built on these.
 
 ## Testing
 

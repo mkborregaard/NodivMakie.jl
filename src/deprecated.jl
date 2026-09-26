@@ -1,0 +1,19 @@
+# Renamed in 0.3 to names with underscores between their words (BlueStyle)
+@deprecate treelayout(args...; kwargs...) tree_layout(args...; kwargs...) false
+@deprecate nodepanel(args...; kwargs...) node_panel(args...; kwargs...) false
+@deprecate nodepanel!(args...; kwargs...) node_panel!(args...; kwargs...) false
+@deprecate hassos(args...; kwargs...) has_sos(args...; kwargs...) false
+@deprecate cladecolors(args...; kwargs...) clade_colors(args...; kwargs...) false
+@deprecate sosmap!(args...; kwargs...) sos_map!(args...; kwargs...) false
+@deprecate nodeexplorer(args...; kwargs...) node_explorer(args...; kwargs...) false
+@deprecate nodeat(args...; kwargs...) node_at(args...; kwargs...) false
+@deprecate onnodeclick(args...; kwargs...) on_node_click(args...; kwargs...) false
+@deprecate focuscolors(args...; kwargs...) focus_colors(args...; kwargs...) false
+@deprecate explorertree!(args...; kwargs...) explorer_tree!(args...; kwargs...) false
+@deprecate speciesname(args...; kwargs...) species_name(args...; kwargs...) false
+@deprecate treeimages!(args...; kwargs...) tree_images!(args...; kwargs...) false
+@deprecate missingimages(args...; kwargs...) missing_images(args...; kwargs...) false
+@deprecate cladeimages!(args...; kwargs...) clade_images!(args...; kwargs...) false
+@deprecate imagegeometry(args...; kwargs...) image_geometry(args...; kwargs...) false
+@deprecate imageclades(args...; kwargs...) image_clades(args...; kwargs...) false
+@deprecate selectclades(args...; kwargs...) select_clades(args...; kwargs...) false

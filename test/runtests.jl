@@ -17,4 +17,5 @@ include("testdata.jl")
     include("figures.jl")
     include("clusters.jl")
     include("images.jl")
+    include("deprecated.jl")
 end

@@ -35,10 +35,10 @@
     @test isempty(p.selected_points[])
     p.selected = nothing
     @test isempty(p.selected_points[])
-    @test nodeat(p, p.plots[1], 2) == "n1"
-    @test nodeat(p, p.plots[2], 1) === nothing                   # the ring
-    @test nodeat(p, p.plots[1], 5) === nothing
-    @test nodeat(p, nothing, 0) === nothing
+    @test node_at(p, p.plots[1], 2) == "n1"
+    @test node_at(p, p.plots[2], 1) === nothing                   # the ring
+    @test node_at(p, p.plots[1], 5) === nothing
+    @test node_at(p, nothing, 0) === nothing
     hover(plt, i) = plt.inspector_label[](plt, i, nothing)
     @test hover(p.plots[1], 4) == "n3"
     Colorbar(fig[1, 2], p)
@@ -48,7 +48,7 @@
 
     # in the explorer, in place of the clade map, and linked both ways with the tree
     target = Ref{Any}((nothing, 0))
-    fig, ex = nodeexplorer(
+    fig, ex = node_explorer(
         asm, tree, res2; nodes=:all, treetype=:dendrogram, pickfn=(sc, xy, r) -> target[]
     )
     op = ex.ordination
@@ -74,7 +74,7 @@
         "n2  (3 species)\ngnd = 0.9"
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     # options for the ordination
-    fig, ex = nodeexplorer(
+    fig, ex = node_explorer(
         asm,
         tree,
         NodeAnalysis(res2.nodes, res2.gnd, thin);
@@ -83,8 +83,8 @@
     )
     @test ex.ordination.ordination[].distances[4, 3] < 1
     # the clade map instead: on request, or with fewer than three marked nodes
-    fig, ex = nodeexplorer(asm, tree, res2; nodes=:all, ordination=false)
+    fig, ex = node_explorer(asm, tree, res2; nodes=:all, ordination=false)
     @test ex.ordination === nothing && ex.panel.axes[1] isa Axis
-    fig, ex = nodeexplorer(asm, tree, res2; nodes=["n1", "n2"])
+    fig, ex = node_explorer(asm, tree, res2; nodes=["n1", "n2"])
     @test ex.ordination === nothing && ex.panel.axes[1] isa Axis
 end

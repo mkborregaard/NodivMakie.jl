@@ -88,9 +88,9 @@ end
 """
     node_panel_pdf(assemblage, tree, nodes, res, outfile; backend, kwargs...) -> outfile
 
-Write the [`nodepanel`](@ref) of each of `nodes` to `outfile`, a PDF with one node per
-page. `res` is the cached analysis result, as for `nodepanel`; nothing is recomputed. Other
-keyword arguments go to `nodepanel`.
+Write the [`node_panel`](@ref) of each of `nodes` to `outfile`, a PDF with one node per
+page. `res` is the cached analysis result, as for `node_panel`; nothing is recomputed. Other
+keyword arguments go to `node_panel`.
 
 `backend` is a Makie backend that writes PDF, i.e. `CairoMakie` (NodivMakie does not load
 one itself). The panel is built once and switched from node to node, each page is saved
@@ -106,7 +106,7 @@ function node_panel_pdf(assemblage, tree, nodes, res, outfile; backend, kwargs..
     end
     tmp = mktempdir()
     pages = String[]
-    fig, panel = nodepanel(assemblage, tree, first(nodes), res; kwargs...)
+    fig, panel = node_panel(assemblage, tree, first(nodes), res; kwargs...)
     for (i, node) in enumerate(nodes)
         panel.node[] = node
         page = joinpath(tmp, string(lpad(i, 3, '0'), ".pdf"))
