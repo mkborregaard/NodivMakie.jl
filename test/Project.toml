@@ -1,4 +1,5 @@
 [deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Nodiv = "6a6d1b09-ff88-4671-a19a-d516f2482c79"
 NodivMakie = "6e5bb3f3-9e99-4721-b096-016fa2d2f487"
@@ -9,3 +10,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 NodivMakie = {path = ".."}
+
+[compat]
+Aqua = "0.8"

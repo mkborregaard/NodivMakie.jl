@@ -1,3 +1,4 @@
+using Aqua
 using CairoMakie
 using Nodiv
 using NodivMakie
@@ -18,4 +19,5 @@ include("testdata.jl")
     include("clusters.jl")
     include("images.jl")
     include("deprecated.jl")
+    include("aqua.jl")
 end
