@@ -31,13 +31,14 @@ Call `f(nodename)` when a node of `plot` in `ax` is left-clicked: a node marker 
 of a `treeplot`, or a point of an [`ordinationplot`](@ref). `range` is the pick radius in
 pixels. Needs an interactive backend (GLMakie, WGLMakie).
 """
-onnodeclick(f, ax::Axis, p::Union{TreePlot, OrdinationPlot}; range = 10) =
-    _onnodeclick(f, ax, p, pick; range)
+function onnodeclick(f, ax::Axis, p::Union{TreePlot,OrdinationPlot}; range=10)
+    return _onnodeclick(f, ax, p, pick; range)
+end
 
 # `pickfn` is the backend's `pick`; the tests swap in a stand-in, as CairoMakie cannot pick
-function _onnodeclick(f, ax::Axis, p, pickfn; range = 10)
+function _onnodeclick(f, ax::Axis, p, pickfn; range=10)
     scene = ax.scene
-    return on(events(scene).mousebutton; priority = 2) do ev
+    return on(events(scene).mousebutton; priority=2) do ev
         (ev.button == Mouse.left && ev.action == Mouse.press) || return Consume(false)
         Makie.is_mouseinside(scene) || return Consume(false)
         n = nodeat(p, pickfn(scene, events(scene).mouseposition[], range)...)
@@ -61,8 +62,7 @@ This follows Nodiv's SOS: a node's SOS is the standardised richness of its FIRST
 per cell fixed. Positive SOS (the high end) marks cells where the first child is
 over-represented; negative SOS (the low end) marks cells where the second child is.
 """
-function focuscolors(tree, layout::TreeLayout, node, sos_colormap, contextcolor;
-                     inset = 0.15)
+function focuscolors(tree, layout::TreeLayout, node, sos_colormap, contextcolor; inset=0.15)
     high, low = cladecolors(sos_colormap; inset)
     colors = fill(to_color(contextcolor), length(layout))
     for (child, color) in zip(getchildren(tree, node)[1:2], (high, low))
@@ -88,7 +88,7 @@ struct ExplorerTree
     axis::Axis
     treeplot::TreePlot
     status::Observable{String}
-    images::Union{TreeImages, Nothing}
+    images::Union{TreeImages,Nothing}
 end
 
 """
@@ -119,39 +119,75 @@ Keyword arguments:
 The hover labels (the node, its number of species and its value) show once the figure
 has a `DataInspector`. Returns an [`ExplorerTree`](@ref).
 """
-function explorertree!(gp, tree, node::Observable{String}, marked::AbstractDict;
-                       selectable = n -> true,
-                       unselectable = "no SOS (a tip, or not analysed)",
-                       values = marked, label = "value", treetype = :fan,
-                       showtips = false, colormap = :YlOrRd, colorrange = automatic,
-                       markersize = 14, strokewidth = 1, strokecolor = :gray20,
-                       contextcolor = :gray75, focuscolormap = :RdYlBu, focusinset = 0.15,
-                       images = nothing, imageoptions = (;), rangesize = nothing,
-                       treekw = (;), pickfn = pick)
+function explorertree!(
+    gp,
+    tree,
+    node::Observable{String},
+    marked::AbstractDict;
+    selectable=n -> true,
+    unselectable="no SOS (a tip, or not analysed)",
+    values=marked,
+    label="value",
+    treetype=:fan,
+    showtips=false,
+    colormap=:YlOrRd,
+    colorrange=automatic,
+    markersize=14,
+    strokewidth=1,
+    strokecolor=:gray20,
+    contextcolor=:gray75,
+    focuscolormap=:RdYlBu,
+    focusinset=0.15,
+    images=nothing,
+    imageoptions=(;),
+    rangesize=nothing,
+    treekw=(;),
+    pickfn=pick,
+)
     gl = GridLayout(gp)
     status = Observable("")
-    Label(gl[1, 1], status; tellwidth = false, halign = :left)
-    ax = Axis(gl[2, 1]; autolimitaspect = treetype === :fan ? 1 : nothing)
+    Label(gl[1, 1], status; tellwidth=false, halign=:left)
+    ax = Axis(gl[2, 1]; autolimitaspect=treetype === :fan ? 1 : nothing)
     hidedecorations!(ax)
     hidespines!(ax)
 
     # the node shown: its two clades in the SOS colours, the rest of the tree greyed
     layout = treelayout(tree)
-    focus(n) = focuscolors(tree, layout, n, focuscolormap, contextcolor; inset = focusinset)
+    focus(n) = focuscolors(tree, layout, n, focuscolormap, contextcolor; inset=focusinset)
     # markers only on the marked nodes: a NaN colour hides a marker's fill, not its outline
-    tp = treeplot!(ax, tree; treetype, showtips, nodecolor = marked,
-                   shownodes = collect(keys(marked)), markersize,
-                   strokewidth, strokecolor, colormap, colorrange,
-                   merge(treekw, (; branchcolor = focus(node[])))...)
+    tp = treeplot!(
+        ax,
+        tree;
+        treetype,
+        showtips,
+        nodecolor=marked,
+        shownodes=collect(keys(marked)),
+        markersize,
+        strokewidth,
+        strokecolor,
+        colormap,
+        colorrange,
+        merge(treekw, (; branchcolor=focus(node[])))...,
+    )
     on(n -> (tp.branchcolor = focus(n)), node)
     ti = nothing
     if images !== nothing
-        rangesize === nothing &&
-            throw(ArgumentError("Species images around the tree need `rangesize`, e.g. the assemblage"))
+        rangesize === nothing && throw(
+            ArgumentError(
+                "Species images around the tree need `rangesize`, e.g. the assemblage"
+            ),
+        )
         ti = treeimages!(ax, tp, images, rangesize; imageoptions...)
     end
-    Colorbar(gl[3, 1], tp; vertical = false, flipaxis = false, label,
-             tellheight = true, width = Relative(0.6))
+    Colorbar(
+        gl[3, 1],
+        tp;
+        vertical=false,
+        flipaxis=false,
+        label,
+        tellheight=true,
+        width=Relative(0.6),
+    )
 
     hasvalue(n) = haskey(values, n) && values[n] isa Real
     valuetext(n) = "$label = $(round(values[n]; sigdigits = 3))"
@@ -191,10 +227,10 @@ struct NodeExplorer
     treeplot::TreePlot
     panel::NodePanel
     status::Observable{String}
-    images::Union{TreeImages, Nothing}
-    inspector::Union{DataInspector, Nothing}
-    ordination::Union{OrdinationPlot, Nothing}
-    ordinationaxis::Union{Axis, Nothing}
+    images::Union{TreeImages,Nothing}
+    inspector::Union{DataInspector,Nothing}
+    ordination::Union{OrdinationPlot,Nothing}
+    ordinationaxis::Union{Axis,Nothing}
 end
 
 _metric_values(res, metric::Symbol) = node_scores(res, metric)
@@ -265,42 +301,97 @@ Returns `(figure, explorer)`; see [`NodeExplorer`](@ref). Clicking needs an inte
 backend (`using GLMakie`); with CairoMakie you get the figure for the initial node.
 The tree side is [`explorertree!`](@ref), which builds explorers with other panels.
 """
-function nodeexplorer(assemblage, tree, res; metric = _default_metric(res),
-                      nodes = automatic, node = automatic, treetype = :fan,
-                      showtips = false, colormap = :YlOrRd, colorrange = automatic,
-                      markersize = 14, strokewidth = 1, strokecolor = :gray20,
-                      contextcolor = :gray75, focusinset = 0.15, images = nothing,
-                      imageoptions = (;), treekw = (;), ordination = true,
-                      ordinationkw = (;), panel = (;), figure = (;),
-                      inspector = true, pickfn = pick)
+function nodeexplorer(
+    assemblage,
+    tree,
+    res;
+    metric=_default_metric(res),
+    nodes=automatic,
+    node=automatic,
+    treetype=:fan,
+    showtips=false,
+    colormap=:YlOrRd,
+    colorrange=automatic,
+    markersize=14,
+    strokewidth=1,
+    strokecolor=:gray20,
+    contextcolor=:gray75,
+    focusinset=0.15,
+    images=nothing,
+    imageoptions=(;),
+    treekw=(;),
+    ordination=true,
+    ordinationkw=(;),
+    panel=(;),
+    figure=(;),
+    inspector=true,
+    pickfn=pick,
+)
     sos = _sos_values(res)
     vals = _metric_values(res, metric)
     marked = _marked_nodes(res, tree, vals, nodes, metric)
     node = node === automatic ? _initial_node(res, marked, metric) : String(node)
     label = metric isa Symbol ? string(metric) : "value"
 
-    fig = Figure(; size = (1600, 850), figure...)
+    fig = Figure(; size=(1600, 850), figure...)
     showordination = ordination && length(marked) >= 3
-    np = nodepanel!(fig[1, 2], assemblage, tree, node, res;
-                    merge((; colorinset = focusinset, clademap = !showordination), panel)...)
+    np = nodepanel!(
+        fig[1, 2],
+        assemblage,
+        tree,
+        node,
+        res;
+        merge((; colorinset=focusinset, clademap=(!showordination)), panel)...,
+    )
     rangesize, opts = _image_options(imageoptions, assemblage)
     images = _species_images(images)
-    et = explorertree!(fig[1, 1], tree, np.node, marked; values = vals, label,
-                       selectable = n -> hassos(tree, sos, n), treetype, showtips,
-                       colormap, colorrange, markersize, strokewidth, strokecolor,
-                       contextcolor, focuscolormap = np.maps[2].colormap[], focusinset,
-                       images, imageoptions = opts, rangesize, treekw, pickfn)
+    et = explorertree!(
+        fig[1, 1],
+        tree,
+        np.node,
+        marked;
+        values=vals,
+        label,
+        selectable=n -> hassos(tree, sos, n),
+        treetype,
+        showtips,
+        colormap,
+        colorrange,
+        markersize,
+        strokewidth,
+        strokecolor,
+        contextcolor,
+        focuscolormap=np.maps[2].colormap[],
+        focusinset,
+        images,
+        imageoptions=opts,
+        rangesize,
+        treekw,
+        pickfn,
+    )
     colsize!(fig.layout, 1, Relative(0.45))
     tp = et.treeplot
     if images !== nothing
-        shared = NamedTuple(k => v for (k, v) in pairs(opts) if k in (:shape, :fit, :whitebackground, :clip))
-        cladeimages!(np, tree, images, rangesize; pixelsize = et.images.pixelsize, shared...)
+        shared = NamedTuple(
+            k => v for (k, v) in pairs(opts) if k in (:shape, :fit, :whitebackground, :clip)
+        )
+        cladeimages!(np, tree, images, rangesize; pixelsize=et.images.pixelsize, shared...)
     end
 
     op, oax = nothing, nothing
     if showordination
-        op, oax = _explorer_ordination!(np, res, tp, marked; colormap, markersize,
-                                        strokewidth, strokecolor, ordinationkw, pickfn)
+        op, oax = _explorer_ordination!(
+            np,
+            res,
+            tp,
+            marked;
+            colormap,
+            markersize,
+            strokewidth,
+            strokecolor,
+            ordinationkw,
+            pickfn,
+        )
     end
     di = inspector ? DataInspector(fig) : nothing
     return fig, NodeExplorer(fig, et.axis, tp, np, et.status, et.images, di, op, oax)
@@ -315,31 +406,62 @@ function _marked_nodes(res, tree, vals, nodes, metric)
     elseif nodes === :all
         nodes = collect(keys(sos))
     end
-    marked = Dict(n => Float64(vals[n]) for n in nodes
-                  if haskey(vals, n) && isfinite(vals[n]) && hassos(tree, sos, n))
-    isempty(marked) && throw(ArgumentError("None of `nodes` has both an SOS and a finite " *
-                                           "metric value; pass `nodes = :all` to mark every node with an SOS"))
+    marked = Dict(
+        n => Float64(vals[n]) for
+        n in nodes if haskey(vals, n) && isfinite(vals[n]) && hassos(tree, sos, n)
+    )
+    isempty(marked) && throw(
+        ArgumentError(
+            "None of `nodes` has both an SOS and a finite " *
+            "metric value; pass `nodes = :all` to mark every node with an SOS",
+        ),
+    )
     return marked
 end
 
 # The node shown first: the most divergent marked node
 function _initial_node(res, marked, metric)
-    metric isa Symbol && return most_divergent(res, collect(keys(marked)); by = metric)
+    metric isa Symbol && return most_divergent(res, collect(keys(marked)); by=metric)
     return argmax(n -> marked[n], keys(marked))
 end
 
 # The marked nodes by SOS similarity, in the panel's free top-left cell: coloured like the
 # tree's markers, with the tree's hover labels. A click on a point shows its node, and the
 # node shown has a ring.
-function _explorer_ordination!(np, res, tp, marked; colormap, markersize, strokewidth,
-                               strokecolor, ordinationkw, pickfn)
+function _explorer_ordination!(
+    np,
+    res,
+    tp,
+    marked;
+    colormap,
+    markersize,
+    strokewidth,
+    strokecolor,
+    ordinationkw,
+    pickfn,
+)
     ord = sos_ordination(res, sort!(collect(keys(marked))); ordinationkw...)
-    oax = Axis(np.layout[1, 1]; title = "SOS similarity ($(length(ord.nodes)) nodes)",
-               xlabel = "MDS axis 1", ylabel = "MDS axis 2", autolimitaspect = 1,
-               xgridvisible = false, ygridvisible = false)
-    op = ordinationplot!(oax, ord; nodecolor = marked, colormap,
-                         colorrange = tp.joint_colorrange[], markersize, strokewidth,
-                         strokecolor, selected = np.node[], hoverlabel = tp.hoverlabel[])
+    oax = Axis(
+        np.layout[1, 1];
+        title="SOS similarity ($(length(ord.nodes)) nodes)",
+        xlabel="MDS axis 1",
+        ylabel="MDS axis 2",
+        autolimitaspect=1,
+        xgridvisible=false,
+        ygridvisible=false,
+    )
+    op = ordinationplot!(
+        oax,
+        ord;
+        nodecolor=marked,
+        colormap,
+        colorrange=tp.joint_colorrange[],
+        markersize,
+        strokewidth,
+        strokecolor,
+        selected=np.node[],
+        hoverlabel=tp.hoverlabel[],
+    )
     on(n -> (op.selected = n), np.node)
     _onnodeclick(n -> (np.node[] = n), oax, op, pickfn)
     return op, oax

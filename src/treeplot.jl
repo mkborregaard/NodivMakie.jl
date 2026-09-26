@@ -116,21 +116,24 @@ Makie.convert_arguments(::Type{<:TreePlot}, tree::Phylo.AbstractTree) = (tree,)
 
 ## Resolving per-node specifications -------------------------------------------------
 
-_is_color_spec(x) = x isa Union{Symbol, Colorant, Tuple{Union{Symbol, Colorant}, Real}}
+_is_color_spec(x) = x isa Union{Symbol,Colorant,Tuple{Union{Symbol,Colorant},Real}}
 
 # One value per node of `names`, `missing` where the spec has no value
 _per_node(x::AbstractDict, names) = Any[get(x, n, missing) for n in names]
 _per_node(f::Function, names) = Any[f(n) for n in names]
 function _per_node(x::AbstractVector, names)
-    length(x) == length(names) ||
-        throw(ArgumentError("A per-node vector must have one value per node " *
-                            "($(length(names))); got $(length(x))"))
+    length(x) == length(names) || throw(
+        ArgumentError(
+            "A per-node vector must have one value per node " *
+            "($(length(names))); got $(length(x))",
+        ),
+    )
     return Vector{Any}(x)
 end
 
 # The same in a tree's layout order, where the spec can also be a node-data field, and
 # a vector can have values for the internal nodes or the tips only
-_per_node(x::Union{AbstractDict, Function}, tree, l) = _per_node(x, l.names)
+_per_node(x::Union{AbstractDict,Function}, tree, l) = _per_node(x, l.names)
 _per_node(x::AbstractString, tree, l) = Any[getnodedata(tree, name)[x] for name in l.names]
 function _per_node(x::AbstractVector, tree, l)
     n = length(x)
@@ -141,28 +144,32 @@ function _per_node(x::AbstractVector, tree, l)
     elseif n == _ntips(l)
         ret[l.isleaf] .= x
     else
-        throw(ArgumentError("A per-node vector must have one value per node ($(length(l))), " *
-                            "internal node ($(count(!, l.isleaf))) or tip ($(_ntips(l))); got $n"))
+        throw(
+            ArgumentError(
+                "A per-node vector must have one value per node ($(length(l))), " *
+                "internal node ($(count(!, l.isleaf))) or tip ($(_ntips(l))); got $n",
+            ),
+        )
     end
     return ret
 end
 
 # Per-node values as label texts; no text where a value is missing
-_label_texts(vals) = String[v isa Union{Missing, Nothing} ? "" : string(v) for v in vals]
+_label_texts(vals) = String[v isa Union{Missing,Nothing} ? "" : string(v) for v in vals]
 
 # Numeric values -> Float64 with NaN for missing (to go through the colormap);
 # anything else is taken as one colour per node.
 function _color_values(vals, nancolor)
-    if all(v -> v isa Union{Real, Missing, Nothing}, vals)
+    if all(v -> v isa Union{Real,Missing,Nothing}, vals)
         return Float64[v isa Real ? v : NaN for v in vals]
     end
     nc = to_color(nancolor)
-    return RGBAf[v isa Union{Missing, Nothing} ? nc : to_color(v) for v in vals]
+    return RGBAf[v isa Union{Missing,Nothing} ? nc : to_color(v) for v in vals]
 end
 
 # Does this spec give a value for every node (-> :all), tips only (-> :tips)?
 function _spec_coverage(x, l)
-    x isa Union{AbstractDict, AbstractString, Function} && return :all
+    x isa Union{AbstractDict,AbstractString,Function} && return :all
     if x isa AbstractVector
         length(x) == length(l) && return :all
         length(x) == _ntips(l) && return :tips
@@ -193,8 +200,11 @@ function _shown_indices(l::TreeLayout, shownodes, specs...)
     elseif shownodes isa AbstractVector
         return [l.index[string(n)] for n in shownodes]
     else
-        throw(ArgumentError("`shownodes` must be :internal, :all, :tips or a vector of " *
-                            "node names"))
+        throw(
+            ArgumentError(
+                "`shownodes` must be :internal, :all, :tips or a vector of " * "node names"
+            ),
+        )
     end
 end
 
@@ -245,28 +255,56 @@ function Makie.plot!(p::TreePlot)
         return hi .- lo .+ 1
     end
 
-    map!(p, [:tree, :tree_layout, :branch_owner, :branchcolor, :branch_nan_color],
-         :branch_colors) do tree, l, owner, bc, nanc
+    map!(
+        p,
+        [:tree, :tree_layout, :branch_owner, :branchcolor, :branch_nan_color],
+        :branch_colors,
+    ) do tree, l, owner, bc, nanc
         _is_color_spec(bc) && return bc
         return _color_values(_per_node(bc, tree, l), nanc)[owner]
     end
 
     # The nodes with markers/labels and their per-node attributes
-    map!(p, [:tree, :tree_layout, :node_points, :shownodes, :nodecolor, :markersize,
-             :nodegroup, :nodelabels, :nan_color, :showtips],
-         [:shown, :marker_points, :marker_colors, :marker_sizes, :marker_groups,
-          :label_points, :label_texts]) do tree, l, pts, shownodes, nc, ms, grp, lab, nanc, st
+    map!(
+        p,
+        [
+            :tree,
+            :tree_layout,
+            :node_points,
+            :shownodes,
+            :nodecolor,
+            :markersize,
+            :nodegroup,
+            :nodelabels,
+            :nan_color,
+            :showtips,
+        ],
+        [
+            :shown,
+            :marker_points,
+            :marker_colors,
+            :marker_sizes,
+            :marker_groups,
+            :label_points,
+            :label_texts,
+        ],
+    ) do tree, l, pts, shownodes, nc, ms, grp, lab, nanc, st
         shown = _shown_indices(l, shownodes, nc, ms, grp, lab)
         colors = _marker_colors(nc, tree, l, shown, nanc)
         sizes = _marker_sizes(ms, tree, l, shown)
         groups = grp === nothing ? nothing : _per_node(grp, tree, l)[shown]
         texts = _marker_texts(lab, tree, l, shown, st)
         haslabel = .!isempty.(texts)
-        return shown, pts[shown], colors, sizes, groups, pts[shown][haslabel], texts[haslabel]
+        return shown,
+        pts[shown], colors, sizes, groups, pts[shown][haslabel],
+        texts[haslabel]
     end
 
-    map!(p, [:tree_layout, :treetype, :tipoffset],
-         [:tip_points, :tip_texts, :tip_rotations, :tip_aligns, :tip_offsets]) do l, tt, off
+    map!(
+        p,
+        [:tree_layout, :treetype, :tipoffset],
+        [:tip_points, :tip_texts, :tip_rotations, :tip_aligns, :tip_offsets],
+    ) do l, tt, off
         tips = findall(l.isleaf)
         if tt === :fan
             θs = _fan_angle.(l.depth[tips], _ntips(l))
@@ -318,53 +356,109 @@ function Makie.plot!(p::TreePlot)
         return _node_label(p, n)
     end
 
-    cmap = (colormap = p.colormap, colorscale = p.colorscale, colorrange = p.joint_colorrange,
-            lowclip = p.lowclip, highclip = p.highclip, alpha = p.alpha)
+    cmap = (
+        colormap=p.colormap,
+        colorscale=p.colorscale,
+        colorrange=p.joint_colorrange,
+        lowclip=p.lowclip,
+        highclip=p.highclip,
+        alpha=p.alpha,
+    )
 
-    scatter!(p, p.pad_points; color = :transparent, markersize = 0, inspectable = false)
+    scatter!(p, p.pad_points; color=:transparent, markersize=0, inspectable=false)
 
-    lines!(p, p.branch_points; color = p.branch_colors, linewidth = p.linewidth,
-           linestyle = p.linestyle, nan_color = p.branch_nan_color,
-           inspector_label = hovertext, cmap...)
+    lines!(
+        p,
+        p.branch_points;
+        color=p.branch_colors,
+        linewidth=p.linewidth,
+        linestyle=p.linestyle,
+        nan_color=p.branch_nan_color,
+        inspector_label=hovertext,
+        cmap...,
+    )
 
     drawmarkers = any(!isnothing, (p.nodecolor[], p.markersize[], p.nodegroup[]))
     if drawmarkers && p.nodegroup[] === nothing
-        scatter!(p, p.marker_points; color = p.marker_colors, markersize = p.marker_sizes,
-                 marker = p.marker, strokewidth = p.strokewidth,
-                 strokecolor = p.strokecolor, nan_color = p.nan_color,
-                 inspector_label = hovertext, cmap...)
+        scatter!(
+            p,
+            p.marker_points;
+            color=p.marker_colors,
+            markersize=p.marker_sizes,
+            marker=p.marker,
+            strokewidth=p.strokewidth,
+            strokecolor=p.strokecolor,
+            nan_color=p.nan_color,
+            inspector_label=hovertext,
+            cmap...,
+        )
     elseif drawmarkers
         # Groups are fixed when the plot is created, as they set the number of scatters
         groups = sort(unique(skipmissing(p.marker_groups[])))
         for (k, g) in enumerate(groups)
             pts, sizes = Symbol(:group_points_, k), Symbol(:group_sizes_, k)
-            map!(p, [:marker_points, :marker_sizes, :marker_groups], [pts, sizes]) do mp, ms, mg
+            map!(
+                p, [:marker_points, :marker_sizes, :marker_groups], [pts, sizes]
+            ) do mp, ms, mg
                 keep = isequal.(mg, g)
                 return mp[keep], ms isa AbstractVector ? ms[keep] : ms
             end
             color = p.groupcolors[][mod1(k, length(p.groupcolors[]))]
-            scatter!(p, getproperty(p, pts); color, markersize = getproperty(p, sizes),
-                     marker = p.marker, strokewidth = p.strokewidth,
-                     strokecolor = p.strokecolor, label = string(g),
-                     inspector_label = hovertext)
+            scatter!(
+                p,
+                getproperty(p, pts);
+                color,
+                markersize=getproperty(p, sizes),
+                marker=p.marker,
+                strokewidth=p.strokewidth,
+                strokecolor=p.strokecolor,
+                label=string(g),
+                inspector_label=hovertext,
+            )
         end
     end
 
     if p.nodelabelbackground[] === nothing
-        text!(p, p.label_points; text = p.label_texts, fontsize = p.nodelabelsize,
-              color = p.nodelabelcolor, align = p.nodelabelalign, offset = p.nodelabeloffset,
-              inspectable = false)
+        text!(
+            p,
+            p.label_points;
+            text=p.label_texts,
+            fontsize=p.nodelabelsize,
+            color=p.nodelabelcolor,
+            align=p.nodelabelalign,
+            offset=p.nodelabeloffset,
+            inspectable=false,
+        )
     else
-        textlabel!(p, p.label_points; text = p.label_texts, fontsize = p.nodelabelsize,
-                   text_color = p.nodelabelcolor, text_align = p.nodelabelalign,
-                   offset = p.nodelabeloffset, background_color = p.nodelabelbackground,
-                   strokecolor = p.nodelabelstrokecolor, strokewidth = 0.5, padding = 2,
-                   inspectable = false)
+        textlabel!(
+            p,
+            p.label_points;
+            text=p.label_texts,
+            fontsize=p.nodelabelsize,
+            text_color=p.nodelabelcolor,
+            text_align=p.nodelabelalign,
+            offset=p.nodelabeloffset,
+            background_color=p.nodelabelbackground,
+            strokecolor=p.nodelabelstrokecolor,
+            strokewidth=0.5,
+            padding=2,
+            inspectable=false,
+        )
     end
 
-    text!(p, p.tip_points; text = p.tip_texts, rotation = p.tip_rotations,
-          align = p.tip_aligns, offset = p.tip_offsets, fontsize = p.tipfontsize,
-          color = p.tipcolor, font = p.tipfont, visible = p.showtips, inspectable = false)
+    text!(
+        p,
+        p.tip_points;
+        text=p.tip_texts,
+        rotation=p.tip_rotations,
+        align=p.tip_aligns,
+        offset=p.tip_offsets,
+        fontsize=p.tipfontsize,
+        color=p.tipcolor,
+        font=p.tipfont,
+        visible=p.showtips,
+        inspectable=false,
+    )
     return p
 end
 
@@ -377,18 +471,25 @@ end
 # Axis defaults, like Phylo's `framestyle = :none, grid = false` and the fan's
 # `aspect_ratio = 1`. Only applied when `treeplot` creates the axis.
 function Makie.preferred_axis_attributes(::Type{Axis}, p::TreePlot)
-    return (; xgridvisible = false, ygridvisible = false,
-            xticksvisible = false, yticksvisible = false,
-            xticklabelsvisible = false, yticklabelsvisible = false,
-            leftspinevisible = false, rightspinevisible = false,
-            topspinevisible = false, bottomspinevisible = false,
-            autolimitaspect = p.treetype[] === :fan ? 1 : nothing)
+    return (;
+        xgridvisible=false,
+        ygridvisible=false,
+        xticksvisible=false,
+        yticksvisible=false,
+        xticklabelsvisible=false,
+        yticklabelsvisible=false,
+        leftspinevisible=false,
+        rightspinevisible=false,
+        topspinevisible=false,
+        bottomspinevisible=false,
+        autolimitaspect=p.treetype[] === :fan ? 1 : nothing,
+    )
 end
 
 # `Colorbar(fig[1, 2], p)`: the node colours if they are numeric, else the branches'.
 function Makie.extract_colormap(p::TreePlot)
     for child in Iterators.reverse(p.plots)
-        child isa Union{Scatter, Lines} || continue
+        child isa Union{Scatter,Lines} || continue
         cm = Makie.extract_colormap(child)
         cm isa Makie.ColorMapping && return cm
     end
@@ -396,5 +497,6 @@ function Makie.extract_colormap(p::TreePlot)
 end
 
 # Legend entries are the node groups (if any), not the tree itself.
-Makie.get_plots(p::TreePlot) = filter(c -> c isa Scatter && haskey(c, :label) &&
-                                           !isnothing(c.label[]), p.plots)
+function Makie.get_plots(p::TreePlot)
+    return filter(c -> c isa Scatter && haskey(c, :label) && !isnothing(c.label[]), p.plots)
+end

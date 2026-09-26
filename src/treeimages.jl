@@ -33,7 +33,7 @@ missingimages(ti::TreeImages) = [c.species for c in ti.clades if c.shown === not
 # is scaled), NaN-separated for drawing many at once
 function _outline_points!(pts, x, y, w, sx, sy, shape)
     if shape === :circle
-        for φ in range(0, 2pi; length = 65)
+        for φ in range(0, 2pi; length=65)
             push!(pts, Point2d(x + w / 2 * sx * cos(φ), y + w / 2 * sy * sin(φ)))
         end
     else
@@ -49,7 +49,8 @@ end
 # the transparent surroundings of a bird do not count as the image
 function _over_image(plot)
     scene = Makie.parent_scene(plot)
-    pos = plot.space[] === :pixel ? Makie.mouseposition_px(scene) : Makie.mouseposition(scene)
+    pos =
+        plot.space[] === :pixel ? Makie.mouseposition_px(scene) : Makie.mouseposition(scene)
     (x0, x1), (y0, y1) = plot[1][].data, plot[2][].data
     img = Makie._to_array(plot[3][])
     u, v = (pos[1] - x0) / (x1 - x0), (pos[2] - y0) / (y1 - y0)
@@ -68,7 +69,7 @@ function _image_hover!(p, text)
     p.inspector_hover = function (inspector, plot, idx)
         _over_image(plot) || return false
         pos = Point2f(Makie.mouseposition_px(inspector.root))
-        Makie.update_tooltip_alignment!(inspector, pos; text = string(to_value(text)))
+        Makie.update_tooltip_alignment!(inspector, pos; text=string(to_value(text)))
         return true
     end
     p.inspectable = true
@@ -120,21 +121,35 @@ their place.
 Hovering over a bird (with a `DataInspector`) shows its species and the clade it stands
 for; its transparent surroundings do not count.
 """
-function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = automatic,
-                     nimages = automatic, gap = 0.04, spacing = 0.1, shape = :circle,
-                     strokecolor = :gray40, strokewidth = 0, showclades = false,
-                     cladecolor = :gray50, minclade = 0.5, fit = :pad,
-                     whitebackground = false, clip = 0.0)
-    shape in (:circle, :square) || throw(ArgumentError("`shape` must be :circle or :square"))
+function treeimages!(
+    ax::Axis,
+    tp::TreePlot,
+    images,
+    rangesize;
+    imagesize=automatic,
+    nimages=automatic,
+    gap=0.04,
+    spacing=0.1,
+    shape=:circle,
+    strokecolor=:gray40,
+    strokewidth=0,
+    showclades=false,
+    cladecolor=:gray50,
+    minclade=0.5,
+    fit=:pad,
+    whitebackground=false,
+    clip=0.0,
+)
+    shape in (:circle, :square) ||
+        throw(ArgumentError("`shape` must be :circle or :square"))
     images = _species_images(images)
     l, tt = tp.tree_layout[], tp.treetype[]
     geo = imagegeometry(l, tt; imagesize, nimages, gap, spacing, shape)
-    clades = imageclades(l, geo.nimages, rangesize, images; minclade,
-                         circular = tt === :fan)
+    clades = imageclades(l, geo.nimages, rangesize, images; minclade, circular=tt === :fan)
     nmissing = count(c -> c.shown === nothing, clades)
     nmissing > 0 &&
         @info "$nmissing of $(length(clades)) image positions have no image for any " *
-              "species of their clade; `missingimages` lists the species to find"
+            "species of their clade; `missingimages` lists the species to find"
     centre(c) = (first(c.tips) + last(c.tips)) / 2
     hovertext(c) = "$(_display_name(c.shown))\nfor $(c.clade) ($(length(c.tips)) species)"
     shown = filter(c -> c.shown !== nothing, clades)
@@ -146,7 +161,9 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         pts = [_polar(geo.radius, _fan_angle(centre(c), T)) for c in shown]
         for (c, p) in zip(shown, pts)
             img = _marker_image(images[c.shown], shape; fit, whitebackground, clip)
-            ip = image!(ax, (p[1] - s / 2) .. (p[1] + s / 2), (p[2] - s / 2) .. (p[2] + s / 2), img)
+            ip = image!(
+                ax, (p[1] - s / 2) .. (p[1] + s / 2), (p[2] - s / 2) .. (p[2] + s / 2), img
+            )
             push!(plots, _image_hover!(ip, hovertext(c)))
         end
         outline = Point2d[]
@@ -154,18 +171,26 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
             _outline_points!(outline, p[1], p[2], s, 1, 1, shape)
         end
         imgax = ax
-        pixelsize = lift((vp, lims) -> s * vp.widths[1] / max(lims.widths[1], eps()),
-                         ax.scene.viewport, ax.finallimits)
+        pixelsize = lift(
+            (vp, lims) -> s * vp.widths[1] / max(lims.widths[1], eps()),
+            ax.scene.viewport,
+            ax.finallimits,
+        )
         if showclades
             R = maximum(l.height)
             arcs = Point2d[]
             for c in clades
-                θs = range(_fan_angle(first(c.tips) - 0.4, T), _fan_angle(last(c.tips) + 0.4, T);
-                           length = 2 + ceil(Int, 60 * length(c.tips) / T))
+                θs = range(
+                    _fan_angle(first(c.tips) - 0.4, T),
+                    _fan_angle(last(c.tips) + 0.4, T);
+                    length=2 + ceil(Int, 60 * length(c.tips) / T),
+                )
                 append!(arcs, _polar.(R * (1 + gap / 2), θs))
                 push!(arcs, Point2d(NaN, NaN))
             end
-            push!(plots, lines!(ax, arcs; color = cladecolor, linewidth = 1.5, inspectable = false))
+            push!(
+                plots, lines!(ax, arcs; color=cladecolor, linewidth=1.5, inspectable=false)
+            )
         end
     else
         # A narrow axis right of the tree, sharing its y axis. Its x axis runs from
@@ -176,14 +201,21 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         gl, rows, col = gc.parent, gc.span.rows, gc.span.cols.stop + 1
         col <= ncols(gl) && insertcols!(gl, col, 1)
         g = 4gap
-        imgax = Axis(gl[rows, col]; limits = ((-g, 1.0), nothing), xgridvisible = false,
-                     ygridvisible = false)
+        imgax = Axis(
+            gl[rows, col];
+            limits=((-g, 1.0), nothing),
+            xgridvisible=false,
+            ygridvisible=false,
+        )
         hidedecorations!(imgax)
         hidespines!(imgax)
         linkyaxes!(ax, imgax)
-        pixels_per_tip = lift((vp, lims) -> vp.widths[2] / max(lims.widths[2], eps()),
-                              ax.scene.viewport, ax.finallimits)
-        on(pxy -> (imgax.width = max(1.0, s * pxy * (1 + g))), pixels_per_tip; update = true)
+        pixels_per_tip = lift(
+            (vp, lims) -> vp.widths[2] / max(lims.widths[2], eps()),
+            ax.scene.viewport,
+            ax.finallimits,
+        )
+        on(pxy -> (imgax.width = max(1.0, s * pxy * (1 + g))), pixels_per_tip; update=true)
         pixelsize = lift(pxy -> s * pxy, pixels_per_tip)
         for c in shown
             img = _marker_image(images[c.shown], shape; fit, whitebackground, clip)
@@ -199,15 +231,25 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
             H = maximum(l.height)
             bars = Point2d[]
             for c in clades
-                push!(bars, Point2d(H * 1.02, first(c.tips) - 0.4),
-                      Point2d(H * 1.02, last(c.tips) + 0.4), Point2d(NaN, NaN))
+                push!(
+                    bars,
+                    Point2d(H * 1.02, first(c.tips) - 0.4),
+                    Point2d(H * 1.02, last(c.tips) + 0.4),
+                    Point2d(NaN, NaN),
+                )
             end
-            push!(plots, lines!(ax, bars; color = cladecolor, linewidth = 1.5, inspectable = false))
+            push!(
+                plots, lines!(ax, bars; color=cladecolor, linewidth=1.5, inspectable=false)
+            )
         end
     end
     if strokewidth > 0 && !isempty(outline)
-        push!(plots, lines!(imgax, outline; color = strokecolor, linewidth = strokewidth,
-                            inspectable = false))
+        push!(
+            plots,
+            lines!(
+                imgax, outline; color=strokecolor, linewidth=strokewidth, inspectable=false
+            ),
+        )
     end
     return TreeImages(clades, geo, imgax, plots, pixelsize)
 end
@@ -237,8 +279,18 @@ maps are zoomed or panned. Hovering over the bird (with a `DataInspector`) shows
 species.
 Returns the two image plots.
 """
-function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, margin = 6,
-                      shape = :circle, fit = :pad, whitebackground = false, clip = 0.0)
+function cladeimages!(
+    np::NodePanel,
+    tree,
+    images,
+    rangesize;
+    pixelsize=60,
+    margin=6,
+    shape=:circle,
+    fit=:pad,
+    whitebackground=false,
+    clip=0.0,
+)
     images = _species_images(images)
     rs = _range_sizes(rangesize)
     function representative(clade)
@@ -252,17 +304,23 @@ function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, ma
     plots = Any[]
     for k in 1:2
         ax = np.axes[2 + k]
-        species = Observable{Union{String, Nothing}}(representative(child(np.node[], k)))
+        species = Observable{Union{String,Nothing}}(representative(child(np.node[], k)))
         on(n -> (species[] = representative(child(n, k))), np.node)
         img = lift(species) do sp
             sp === nothing && return blank
             return _marker_image(images[sp], shape; fit, whitebackground, clip)
         end
-        xs = lift((vp, s) -> (vp.widths[1] - margin - s) .. (vp.widths[1] - margin),
-                  ax.scene.viewport, px)
-        ys = lift((vp, s) -> (vp.widths[2] - margin - s) .. (vp.widths[2] - margin),
-                  ax.scene.viewport, px)
-        p = image!(ax.scene, xs, ys, img; space = :pixel, visible = lift(!isnothing, species))
+        xs = lift(
+            (vp, s) -> (vp.widths[1] - margin - s) .. (vp.widths[1] - margin),
+            ax.scene.viewport,
+            px,
+        )
+        ys = lift(
+            (vp, s) -> (vp.widths[2] - margin - s) .. (vp.widths[2] - margin),
+            ax.scene.viewport,
+            px,
+        )
+        p = image!(ax.scene, xs, ys, img; space=:pixel, visible=lift(!isnothing, species))
         _image_hover!(p, lift(sp -> sp === nothing ? "" : _display_name(sp), species))
         translate!(p, 0, 0, 1)                   # above the map
         push!(plots, p)

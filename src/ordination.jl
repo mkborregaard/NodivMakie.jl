@@ -67,24 +67,56 @@ function Makie.plot!(p::OrdinationPlot)
         return f === automatic ? n : string(f(n))
     end
 
-    scatter!(p, p.points; color = p.point_colors, markersize = p.markersize,
-             marker = p.marker, strokewidth = p.strokewidth, strokecolor = p.strokecolor,
-             colormap = p.colormap, colorscale = p.colorscale, colorrange = p.colorrange,
-             lowclip = p.lowclip, highclip = p.highclip, nan_color = p.nan_color,
-             alpha = p.alpha, inspector_label = hovertext)
-    scatter!(p, p.selected_points; color = :transparent, markersize = p.ring_size,
-             strokewidth = 2, strokecolor = p.selectedcolor, inspectable = false)
-    text!(p, p.points; text = p.label_texts, fontsize = p.nodelabelsize,
-          color = p.nodelabelcolor, align = (:center, :bottom), offset = (0, 4),
-          inspectable = false)
+    scatter!(
+        p,
+        p.points;
+        color=p.point_colors,
+        markersize=p.markersize,
+        marker=p.marker,
+        strokewidth=p.strokewidth,
+        strokecolor=p.strokecolor,
+        colormap=p.colormap,
+        colorscale=p.colorscale,
+        colorrange=p.colorrange,
+        lowclip=p.lowclip,
+        highclip=p.highclip,
+        nan_color=p.nan_color,
+        alpha=p.alpha,
+        inspector_label=hovertext,
+    )
+    scatter!(
+        p,
+        p.selected_points;
+        color=:transparent,
+        markersize=p.ring_size,
+        strokewidth=2,
+        strokecolor=p.selectedcolor,
+        inspectable=false,
+    )
+    text!(
+        p,
+        p.points;
+        text=p.label_texts,
+        fontsize=p.nodelabelsize,
+        color=p.nodelabelcolor,
+        align=(:center, :bottom),
+        offset=(0, 4),
+        inspectable=false,
+    )
     return p
 end
 
 # Axis defaults when `ordinationplot` creates the axis: MDS distances are only faithful
 # with equal scales on both axes
-Makie.preferred_axis_attributes(::Type{Axis}, ::OrdinationPlot) =
-    (; autolimitaspect = 1, xlabel = "MDS axis 1", ylabel = "MDS axis 2",
-     xgridvisible = false, ygridvisible = false)
+function Makie.preferred_axis_attributes(::Type{Axis}, ::OrdinationPlot)
+    return (;
+        autolimitaspect=1,
+        xlabel="MDS axis 1",
+        ylabel="MDS axis 2",
+        xgridvisible=false,
+        ygridvisible=false,
+    )
+end
 
 # `Colorbar(fig[1, 2], p)`: the colours of the points
 Makie.extract_colormap(p::OrdinationPlot) = Makie.extract_colormap(p.plots[1])
@@ -108,12 +140,13 @@ Makie.convert_arguments(::Type{<:EigenvaluePlot}, o::SOSOrdination) = (o,)
 
 function Makie.plot!(p::EigenvaluePlot)
     map!(o -> Point2d.(eachindex(o.eigenvalues), o.eigenvalues), p, :ordination, :bars)
-    barplot!(p, p.bars; color = p.color)
+    barplot!(p, p.bars; color=p.color)
     return p
 end
 
-Makie.preferred_axis_attributes(::Type{Axis}, ::EigenvaluePlot) =
-    (; xlabel = "MDS axis", ylabel = "eigenvalue", xgridvisible = false)
+function Makie.preferred_axis_attributes(::Type{Axis}, ::EigenvaluePlot)
+    return (; xlabel="MDS axis", ylabel="eigenvalue", xgridvisible=false)
+end
 
 """
     nodeat(ordinationplot, plot, index)

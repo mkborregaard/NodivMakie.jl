@@ -20,7 +20,7 @@ another node.
 struct NodePanel
     node::Observable{String}
     layout::GridLayout
-    axes::Vector{Union{Axis, Nothing}}
+    axes::Vector{Union{Axis,Nothing}}
     maps::Vector{Any}
     colorbars::Vector{Colorbar}
     sos::AbstractDict
@@ -41,10 +41,10 @@ The colours standing for a node's two child clades: the high end of the SOS colo
 for the first child (positive SOS: cells where the first child is over-represented) and
 the low end for the second, each taken `inset` in from the end.
 """
-function cladecolors(sos_colormap; inset = 0.15)
+function cladecolors(sos_colormap; inset=0.15)
     cmap = Makie.to_colormap(sos_colormap)
     return Makie.interpolated_getindex(cmap, 1.0 - inset),
-           Makie.interpolated_getindex(cmap, Float64(inset))
+    Makie.interpolated_getindex(cmap, Float64(inset))
 end
 
 """
@@ -53,16 +53,23 @@ end
 Whether `node` can be shown in a node panel: it has an SOS vector in `sos` and at least
 two children.
 """
-hassos(tree, sos, node) = haskey(sos, node) && hasnode(tree, node) &&
-                          length(getchildren(tree, node)) >= 2
+function hassos(tree, sos, node)
+    return haskey(sos, node) && hasnode(tree, node) && length(getchildren(tree, node)) >= 2
+end
 
 # The four maps' values and titles for one node. `richness_of` is Nodiv's
 # `clade_richness(assemblage, tree)`, fast enough for clicking through nodes.
 function _node_panel_data(richness_of, tree, sos, node)
     ch1, ch2 = [getnodename(tree, c) for c in getchildren(tree, node)[1:2]]
-    return (values = [_occupied(richness_of(node)), _site_values(sos[node]),
-                      _occupied(richness_of(ch1)), _occupied(richness_of(ch2))],
-            titles = [node, "SOS", ch1, ch2])
+    return (
+        values=[
+            _occupied(richness_of(node)),
+            _site_values(sos[node]),
+            _occupied(richness_of(ch1)),
+            _occupied(richness_of(ch2)),
+        ],
+        titles=[node, "SOS", ch1, ch2],
+    )
 end
 
 """
@@ -90,15 +97,28 @@ Keyword arguments:
 
 Returns a [`NodePanel`](@ref).
 """
-function nodepanel!(gp, assemblage, tree, node, res;
-                    richness_colormap = Reverse(:Spectral), sos_colormap = :RdYlBu,
-                    sos_colorrange = (-8, 8), colorbars = true, axis = (;),
-                    images = nothing, imageoptions = (;), titlecolors = true,
-                    colorinset = 0.15, clademap = true)
+function nodepanel!(
+    gp,
+    assemblage,
+    tree,
+    node,
+    res;
+    richness_colormap=Reverse(:Spectral),
+    sos_colormap=:RdYlBu,
+    sos_colorrange=(-8, 8),
+    colorbars=true,
+    axis=(;),
+    images=nothing,
+    imageoptions=(;),
+    titlecolors=true,
+    colorinset=0.15,
+    clademap=true,
+)
     sos = _sos_values(res)
     node = _node_observable(node)
-    hassos(tree, sos, node[]) ||
-        throw(ArgumentError("Node $(node[]) has no SOS in the result or fewer than two children"))
+    hassos(tree, sos, node[]) || throw(
+        ArgumentError("Node $(node[]) has no SOS in the result or fewer than two children"),
+    )
 
     # Only valid nodes reach the maps; an invalid one leaves the panel as it was
     richness_of = clade_richness(assemblage, tree)
@@ -113,28 +133,34 @@ function nodepanel!(gp, assemblage, tree, node, res;
 
     gl = GridLayout(gp)
     locs = _site_locations(assemblage)
-    axes, maps, cbs = Union{Axis, Nothing}[], Any[], Colorbar[]
+    axes, maps, cbs = Union{Axis,Nothing}[], Any[], Colorbar[]
     for (i, (row, col)) in enumerate(((1, 1), (1, 2), (2, 1), (2, 2)))
         if i == 1 && !clademap
             push!(axes, nothing)
             push!(maps, nothing)
             continue
         end
-        ax = Axis(gl[row, 2col - 1]; title = lift(d -> d.titles[i], data),
-                  autolimitaspect = 1, xgridvisible = false, ygridvisible = false, axis...)
+        ax = Axis(
+            gl[row, 2col - 1];
+            title=lift(d -> d.titles[i], data),
+            autolimitaspect=1,
+            xgridvisible=false,
+            ygridvisible=false,
+            axis...,
+        )
         if i == 2
-            cm = (colormap = sos_colormap, colorrange = sos_colorrange)
+            cm = (colormap=sos_colormap, colorrange=sos_colorrange)
         else
-            cm = (colormap = richness_colormap,)
+            cm = (colormap=richness_colormap,)
         end
         m = sitemap!(ax, lift(d -> d.values[i], data), locs; cm...)
         push!(axes, ax)
         push!(maps, m)
-        colorbars && push!(cbs, Colorbar(gl[row, 2col], m; width = 10))
+        colorbars && push!(cbs, Colorbar(gl[row, 2col], m; width=10))
     end
     linkaxes!(filter(!isnothing, axes)...)
     if titlecolors
-        axes[3].titlecolor, axes[4].titlecolor = cladecolors(sos_colormap; inset = colorinset)
+        axes[3].titlecolor, axes[4].titlecolor = cladecolors(sos_colormap; inset=colorinset)
     end
     np = NodePanel(node, gl, axes, maps, cbs, sos)
     if images !== nothing
@@ -149,8 +175,8 @@ end
 
 [`nodepanel!`](@ref) in a new figure. Returns `(figure, panel)`.
 """
-function nodepanel(assemblage, tree, node, res; figure = (;), kwargs...)
-    fig = Figure(; size = (900, 800), figure...)
+function nodepanel(assemblage, tree, node, res; figure=(;), kwargs...)
+    fig = Figure(; size=(900, 800), figure...)
     return fig, nodepanel!(fig[1, 1], assemblage, tree, node, res; kwargs...)
 end
 
@@ -169,18 +195,38 @@ Keyword arguments:
 - `colorbar = true`: a colour bar beside the map
 - `axis = (;)`: attributes for the axis
 """
-function sosmap!(gp, assemblage, node, res; title = "SOS", colormap = :RdYlBu,
-                 colorrange = (-8, 8), colorbar = true, axis = (;))
+function sosmap!(
+    gp,
+    assemblage,
+    node,
+    res;
+    title="SOS",
+    colormap=:RdYlBu,
+    colorrange=(-8, 8),
+    colorbar=true,
+    axis=(;),
+)
     sos = _sos_values(res)
     node = _node_observable(node)
     haskey(sos, node[]) || throw(ArgumentError("Node $(node[]) has no SOS in the result"))
     shown = Observable(node[])
     on(n -> haskey(sos, n) && (shown[] = n), node)
     gl = GridLayout(gp)
-    ax = Axis(gl[1, 1]; title = title isa Function ? lift(title, shown) : title,
-              autolimitaspect = 1, xgridvisible = false, ygridvisible = false, axis...)
-    m = sitemap!(ax, lift(n -> _site_values(sos[n]), shown), _site_locations(assemblage);
-                 colormap, colorrange)
-    colorbar && Colorbar(gl[1, 2], m; width = 10)
+    ax = Axis(
+        gl[1, 1];
+        title=title isa Function ? lift(title, shown) : title,
+        autolimitaspect=1,
+        xgridvisible=false,
+        ygridvisible=false,
+        axis...,
+    )
+    m = sitemap!(
+        ax,
+        lift(n -> _site_values(sos[n]), shown),
+        _site_locations(assemblage);
+        colormap,
+        colorrange,
+    )
+    colorbar && Colorbar(gl[1, 2], m; width=10)
     return ax, m
 end

@@ -21,7 +21,7 @@ struct TreeLayout
     depth::Vector{Float64}
     parent::Vector{Int}
     isleaf::BitVector
-    index::Dict{String, Int}
+    index::Dict{String,Int}
 end
 
 """
@@ -33,10 +33,17 @@ function treelayout(tree::Phylo.AbstractTree)
     h, d, n = Phylo._findxy(tree)
     names = String[getnodename(tree, x) for x in n]
     index = Dict(name => i for (i, name) in enumerate(names))
-    parent = [hasinbound(tree, x) ? index[getnodename(tree, getparent(tree, x))] : 0
-              for x in n]
-    return TreeLayout(names, Float64[h[x] for x in n], Float64[d[x] for x in n], parent,
-                      BitVector([isleaf(tree, x) for x in n]), index)
+    parent = [
+        hasinbound(tree, x) ? index[getnodename(tree, getparent(tree, x))] : 0 for x in n
+    ]
+    return TreeLayout(
+        names,
+        Float64[h[x] for x in n],
+        Float64[d[x] for x in n],
+        parent,
+        BitVector([isleaf(tree, x) for x in n]),
+        index,
+    )
 end
 
 Base.length(l::TreeLayout) = length(l.names)
@@ -65,8 +72,10 @@ function _node_positions(l::TreeLayout, treetype::Symbol)
 end
 
 function _treetype_error(treetype)
-    return ArgumentError("Unsupported `treetype` $(repr(treetype)); valid values are " *
-                         "`:dendrogram` or `:fan`")
+    return ArgumentError(
+        "Unsupported `treetype` $(repr(treetype)); valid values are " *
+        "`:dendrogram` or `:fan`",
+    )
 end
 
 """
@@ -94,7 +103,7 @@ function _branch_paths(l::TreeLayout, treetype::Symbol)
         elseif treetype === :fan
             θp, θi = _fan_angle(dp, nt), _fan_angle(di, nt)
             # same arc resolution as Phylo's `_p_circ`
-            for θ in range(θp, θi; length = 1 + ceil(Int, 60abs(θi - θp)))
+            for θ in range(θp, θi; length=1 + ceil(Int, 60abs(θi - θp)))
                 push!(pts, _polar(hp, θ))
             end
             push!(pts, _polar(hi, θi))

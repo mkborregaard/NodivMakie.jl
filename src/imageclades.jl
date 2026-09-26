@@ -50,7 +50,7 @@ The choice is exact: clades are taken in tip order, and each is joined to the be
 choice among the clades that end before it and whose centre is at least `w` before its
 own (a weighted interval scheduling over all clades).
 """
-function selectclades(l::TreeLayout, nslots::Integer; minclade = 0.5, circular = false)
+function selectclades(l::TreeLayout, nslots::Integer; minclade=0.5, circular=false)
     lo, hi = _tip_spans(l)
     T = _ntips(l)
     w = T / clamp(nslots, 1, T)
@@ -76,9 +76,9 @@ function selectclades(l::TreeLayout, nslots::Integer; minclade = 0.5, circular =
         end
         return v
     end
-    best = Dict{Int, Tuple{Int, Int}}()
-    prev = Dict{Int, Int}()
-    bylo, byhi = sort(cand; by = i -> lo[i]), sort(cand; by = i -> hi[i])
+    best = Dict{Int,Tuple{Int,Int}}()
+    prev = Dict{Int,Int}()
+    bylo, byhi = sort(cand; by=i -> lo[i]), sort(cand; by=i -> hi[i])
     next = 1
     for i in bylo
         while next <= length(byhi) && hi[byhi[next]] < lo[i]
@@ -99,7 +99,8 @@ function selectclades(l::TreeLayout, nslots::Integer; minclade = 0.5, circular =
     reverse!(chosen)
     # a fan's ring closes: the first and last images must also be a slot apart
     centre(i) = (lo[i] + hi[i]) / 2
-    while circular && length(chosen) >= 2 &&
+    while circular &&
+          length(chosen) >= 2 &&
           (T + 1) - (centre(chosen[end]) - centre(chosen[1])) < w - 1e-9
         # drop the smaller of the two
         firstsmaller = hi[chosen[1]] - lo[chosen[1]] <= hi[chosen[end]] - lo[chosen[end]]
@@ -122,17 +123,20 @@ struct CladeImage
     clade::String
     tips::UnitRange{Int}
     species::String
-    shown::Union{String, Nothing}
+    shown::Union{String,Nothing}
 end
 
 # Range size per species name, from a Dict or an assemblage's occupancy (the number of
 # cells each species occupies)
 _range_sizes(d::AbstractDict) = Dict(String(k) => Float64(v) for (k, v) in d)
-_range_sizes(asm::EcoBase.AbstractAssemblage) =
-    Dict(String(n) => Float64(o) for (n, o) in zip(EcoBase.thingnames(asm), occupancy(asm)))
+function _range_sizes(asm::EcoBase.AbstractAssemblage)
+    return Dict(
+        String(n) => Float64(o) for (n, o) in zip(EcoBase.thingnames(asm), occupancy(asm))
+    )
+end
 
 # Species by range size, largest first; ties alphabetically
-_by_range(species, rs) = sort(species; by = s -> (-get(rs, s, 0.0), s))
+_by_range(species, rs) = sort(species; by=s -> (-get(rs, s, 0.0), s))
 
 """
     imageclades(layout, nslots, rangesize, images; minclade, circular) -> Vector{CladeImage}
@@ -151,7 +155,9 @@ function imageclades(l::TreeLayout, nslots::Integer, rangesize, images; kwargs..
     return map(selectclades(l, nslots; kwargs...)) do i
         sps = _by_range(tipnames[lo[i]:hi[i]], rs)
         k = findfirst(s -> haskey(images, s), sps)
-        CladeImage(l.names[i], lo[i]:hi[i], first(sps), k === nothing ? nothing : sps[k])
+        return CladeImage(
+            l.names[i], lo[i]:hi[i], first(sps), k === nothing ? nothing : sps[k]
+        )
     end
 end
 
@@ -176,8 +182,15 @@ Passing `nimages` instead fixes the number, and the size follows from it.
 Returns `(; nimages, size, radius)`: `size` in data units (tip units for a dendrogram),
 `radius` the fan ring's centre radius (`NaN` for a dendrogram).
 """
-function imagegeometry(l::TreeLayout, treetype::Symbol; imagesize = automatic,
-                       nimages = automatic, gap = 0.04, spacing = 0.1, shape = :circle)
+function imagegeometry(
+    l::TreeLayout,
+    treetype::Symbol;
+    imagesize=automatic,
+    nimages=automatic,
+    gap=0.04,
+    spacing=0.1,
+    shape=:circle,
+)
     T = _ntips(l)
     room = (1 + spacing) * (shape === :circle ? 1.0 : sqrt(2))
     if treetype === :fan
@@ -205,7 +218,7 @@ function imagegeometry(l::TreeLayout, treetype::Symbol; imagesize = automatic,
             s = a
             r = R * (1 + gap) + s / 2
         end
-        return (; nimages = clamp(n, 1, T), size = s, radius = r)
+        return (; nimages=clamp(n, 1, T), size=s, radius=r)
     elseif treetype === :dendrogram
         if nimages === automatic
             s = (imagesize === automatic ? 0.05 : imagesize) * T
@@ -214,7 +227,7 @@ function imagegeometry(l::TreeLayout, treetype::Symbol; imagesize = automatic,
             n = nimages
             s = T / (n * room)
         end
-        return (; nimages = clamp(n, 1, T), size = s, radius = NaN)
+        return (; nimages=clamp(n, 1, T), size=s, radius=NaN)
     else
         throw(_treetype_error(treetype))
     end

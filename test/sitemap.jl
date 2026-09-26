@@ -10,7 +10,7 @@
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     Colorbar(fig[1, 2], p)
     # empty sites are NaN, so not drawn
-    empty = view(asm, species = ["e"])
+    empty = view(asm, species=["e"])
     @test count(isnan, sitemap(empty).plot.image[]) == 9
     # a vector, a function and reactive updates
     fig, ax, p = sitemap(collect(1.0:12), asm)
@@ -19,7 +19,9 @@
     @test p.image[][4, 3] == 1
     @test sitemap(richness, asm).plot.image[][1, 1] == 2
     # a site statistic by name
-    withstat = Assemblage(occ, Float64[first.(grid) last.(grid)], sites, ["a", "b", "c", "d", "e"])
+    withstat = Assemblage(
+        occ, Float64[first.(grid) last.(grid)], sites, ["a", "b", "c", "d", "e"]
+    )
     addsitestats!(withstat, collect(1.0:12), :pc1)
     @test sitemap(:pc1, withstat).plot.image[][4, 3] == 12
     # point sites become a scatter

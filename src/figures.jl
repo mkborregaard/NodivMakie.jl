@@ -8,8 +8,8 @@ A [`sitemap`](@ref) of `args` in a new figure, with a colour bar labelled `label
 it, and `title` over the map. Other keyword arguments go to `sitemap`. Returns a
 `FigureAxisPlot`, like `sitemap`.
 """
-function map_figure(args...; title = "", label = "", axis = (;), kwargs...)
-    fig, ax, p = sitemap(args...; axis = merge((; title), axis), kwargs...)
+function map_figure(args...; title="", label="", axis=(;), kwargs...)
+    fig, ax, p = sitemap(args...; axis=merge((; title), axis), kwargs...)
     Colorbar(fig[1, 2], p; label)
     return Makie.FigureAxisPlot(fig, ax, p)
 end
@@ -37,23 +37,50 @@ Keyword arguments:
 
 Returns a `FigureAxisPlot`.
 """
-function metric_tree(tree, res::Nodiv.AbstractNodeResult; metric = default_score(res),
-                     nodes = automatic, label = string(metric),
-                     colorrange = metric === :gnd ? (0, 1) : automatic, kwargs...)
+function metric_tree(
+    tree,
+    res::Nodiv.AbstractNodeResult;
+    metric=default_score(res),
+    nodes=automatic,
+    label=string(metric),
+    colorrange=metric === :gnd ? (0, 1) : automatic,
+    kwargs...,
+)
     nodes = nodes === automatic ? _default_nodes(res, metric) : nodes
     return metric_tree(tree, node_scores(res, metric); nodes, label, colorrange, kwargs...)
 end
 
-function metric_tree(tree, values::AbstractDict; nodes = keys(values), label = "value",
-                     title = "", treetype = :fan, showtips = false, markersize = 8,
-                     strokewidth = 0.5, colormap = :YlOrRd, colorrange = automatic,
-                     axis = (;), figure = (;), kwargs...)
+function metric_tree(
+    tree,
+    values::AbstractDict;
+    nodes=keys(values),
+    label="value",
+    title="",
+    treetype=:fan,
+    showtips=false,
+    markersize=8,
+    strokewidth=0.5,
+    colormap=:YlOrRd,
+    colorrange=automatic,
+    axis=(;),
+    figure=(;),
+    kwargs...,
+)
     nodes = collect(nodes)
-    fig, ax, p = treeplot(tree; treetype, showtips,
-                          nodecolor = Dict(n => values[n] for n in nodes),
-                          shownodes = nodes, markersize, strokewidth, colormap, colorrange,
-                          axis = merge((; title), axis),
-                          figure = merge((; size = (800, 700)), figure), kwargs...)
+    fig, ax, p = treeplot(
+        tree;
+        treetype,
+        showtips,
+        nodecolor=Dict(n => values[n] for n in nodes),
+        shownodes=nodes,
+        markersize,
+        strokewidth,
+        colormap,
+        colorrange,
+        axis=merge((; title), axis),
+        figure=merge((; size=(800, 700)), figure),
+        kwargs...,
+    )
     Colorbar(fig[1, 2], p; label)
     return Makie.FigureAxisPlot(fig, ax, p)
 end
@@ -72,8 +99,10 @@ PATH (e.g. `brew install poppler`).
 """
 function node_panel_pdf(assemblage, tree, nodes, res, outfile; backend, kwargs...)
     if Sys.which("pdfunite") === nothing
-        error("node_panel_pdf needs `pdfunite` (poppler) on the PATH, e.g. " *
-              "`brew install poppler`")
+        error(
+            "node_panel_pdf needs `pdfunite` (poppler) on the PATH, e.g. " *
+            "`brew install poppler`",
+        )
     end
     tmp = mktempdir()
     pages = String[]
@@ -85,7 +114,7 @@ function node_panel_pdf(assemblage, tree, nodes, res, outfile; backend, kwargs..
         push!(pages, page)
     end
     run(`pdfunite $pages $outfile`)
-    rm(tmp; recursive = true)
+    rm(tmp; recursive=true)
     @info "wrote node-panel PDF" outfile npages = length(pages)
     return outfile
 end

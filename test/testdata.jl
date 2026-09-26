@@ -11,9 +11,15 @@ tree = parsenewick(NEWICK)
 # Five species on a 4 x 3 grid; `sitecolumns` = one column per site
 grid = [(x, y) for y in 1:3 for x in 1:4]
 occ = zeros(Int, 5, 12)
-occ[1, 1:6] .= 1; occ[2, 4:9] .= 1; occ[3, 7:12] .= 1; occ[4, [1, 5, 9]] .= 1; occ[5, 10:12] .= 1
+occ[1, 1:6] .= 1;
+occ[2, 4:9] .= 1;
+occ[3, 7:12] .= 1;
+occ[4, [1, 5, 9]] .= 1;
+occ[5, 10:12] .= 1
 sites = ["s$i" for i in 1:12]
 asm = Assemblage(occ, Float64[first.(grid) last.(grid)], sites, ["a", "b", "c", "d", "e"])
 internal = ["root", "n1", "n2", "n3"]                # the internal nodes in tree order
-sos = Dict(n => collect(range(-8, 8; length = 12)) .* k for (k, n) in enumerate(internal))
-res = NodeAnalysis(internal, Dict("root" => 0.2, "n1" => 0.4, "n2" => 0.9, "n3" => 0.5), sos)
+sos = Dict(n => collect(range(-8, 8; length=12)) .* k for (k, n) in enumerate(internal))
+res = NodeAnalysis(
+    internal, Dict("root" => 0.2, "n1" => 0.4, "n2" => 0.9, "n3" => 0.5), sos
+)

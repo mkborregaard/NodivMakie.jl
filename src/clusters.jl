@@ -29,16 +29,35 @@ Keyword arguments:
 
 Returns a `FigureAxisPlot`.
 """
-function cluster_tree(tree, clusters::SOSClusters; title = "", markersize = 12,
-                      treetype = :fan, showtips = false, strokewidth = 0.5,
-                      strokecolor = :gray30, axis = (;), figure = (;), kwargs...)
-    shown = Dict(n => clusters.labels[c] for (n, c) in clusters.groups
-                 if haskey(clusters.labels, c))
-    fig, ax, p = treeplot(tree; treetype, showtips, nodegroup = shown,
-                          groupcolors = cluster_colors(length(clusters.labels)),
-                          markersize, strokewidth, strokecolor,
-                          axis = merge((; title), axis),
-                          figure = merge((; size = (900, 800)), figure), kwargs...)
+function cluster_tree(
+    tree,
+    clusters::SOSClusters;
+    title="",
+    markersize=12,
+    treetype=:fan,
+    showtips=false,
+    strokewidth=0.5,
+    strokecolor=:gray30,
+    axis=(;),
+    figure=(;),
+    kwargs...,
+)
+    shown = Dict(
+        n => clusters.labels[c] for (n, c) in clusters.groups if haskey(clusters.labels, c)
+    )
+    fig, ax, p = treeplot(
+        tree;
+        treetype,
+        showtips,
+        nodegroup=shown,
+        groupcolors=cluster_colors(length(clusters.labels)),
+        markersize,
+        strokewidth,
+        strokecolor,
+        axis=merge((; title), axis),
+        figure=merge((; size=(900, 800)), figure),
+        kwargs...,
+    )
     isempty(shown) || Legend(fig[1, 2], ax, "cluster")
     return Makie.FigureAxisPlot(fig, ax, p)
 end
@@ -56,8 +75,7 @@ The node names are on both axes; the leaf order, bottom to top, is
 `clusters.nodes[clusters.hclust.order]`. For many nodes, make the figure larger or
 `labelsize` smaller. `figure` holds attributes for the figure.
 """
-function sos_cluster_heatmap(clusters::SOSClusters; title = "", labelsize = 9,
-                             figure = (;))
+function sos_cluster_heatmap(clusters::SOSClusters; title="", labelsize=9, figure=(;))
     hc = clusters.hclust
     ord = hc.order
     labs = clusters.nodes[ord]                  # Node names in dendrogram-leaf order
@@ -65,36 +83,60 @@ function sos_cluster_heatmap(clusters::SOSClusters; title = "", labelsize = 9,
     n = length(labs)
     grp = [clusters.groups[node] for node in labs]  # Cluster of each leaf, in leaf order
 
-    fig = Figure(; size = (1300, 1150), figure...)
-    Label(fig[0, 1:3], title; fontsize = 18, font = :bold)
+    fig = Figure(; size=(1300, 1150), figure...)
+    Label(fig[0, 1:3], title; fontsize=18, font=:bold)
     # The dendrogram on the left, its leaves (height 0) against the heatmap; its heights are
     # drawn at negative x, so the ticks show them as positive
-    dend = Axis(fig[1, 1]; xlabel = "1 - |r|",
-                xtickformat = xs -> string.(round.(abs.(xs); digits = 2)),
-                xgridvisible = false, ygridvisible = false, yticksvisible = false,
-                yticklabelsvisible = false, leftspinevisible = false,
-                topspinevisible = false, rightspinevisible = false)
-    hm = Axis(fig[1, 2]; xticks = (1:n, labs), yticks = (1:n, labs),
-              xticklabelrotation = pi / 2, xticklabelsize = labelsize,
-              yticklabelsize = labelsize)
+    dend = Axis(
+        fig[1, 1];
+        xlabel="1 - |r|",
+        xtickformat=xs -> string.(round.(abs.(xs); digits=2)),
+        xgridvisible=false,
+        ygridvisible=false,
+        yticksvisible=false,
+        yticklabelsvisible=false,
+        leftspinevisible=false,
+        topspinevisible=false,
+        rightspinevisible=false,
+    )
+    hm = Axis(
+        fig[1, 2];
+        xticks=(1:n, labs),
+        yticks=(1:n, labs),
+        xticklabelrotation=pi / 2,
+        xticklabelsize=labelsize,
+        yticklabelsize=labelsize,
+    )
     # Leaf hc.order[k] at y = k, lined up with heatmap row k; each merge at its height
-    dendrogram!(dend, Makie.hcl_nodes(hc; useheight = true); absolute = true,
-                rotation = :right, color = :black)
-    h = heatmap!(hm, 1:n, 1:n, S; colormap = :viridis, colorrange = (0, 1))
-    Colorbar(fig[1, 3], h; label = "|r|")
+    dendrogram!(
+        dend,
+        Makie.hcl_nodes(hc; useheight=true);
+        absolute=true,
+        rotation=:right,
+        color=:black,
+    )
+    h = heatmap!(hm, 1:n, 1:n, S; colormap=:viridis, colorrange=(0, 1))
+    Colorbar(fig[1, 3], h; label="|r|")
 
     colors = cluster_colors(length(clusters.labels))
     for (c, i) in clusters.labels               # Cut clusters are contiguous in `ord`
         rows = findall(==(c), grp)
         lo, hi = extrema(rows)
         box = Rect2d(lo - 0.5, lo - 0.5, hi - lo + 1, hi - lo + 1)
-        poly!(hm, box; color = :transparent, strokecolor = :black, strokewidth = 4)
-        poly!(hm, box; color = :transparent, strokecolor = colors[i], strokewidth = 2)
-        textlabel!(hm, Point2d(hi + 0.5, hi + 0.5); text = string(i), fontsize = 11,
-                   background_color = colors[i], strokewidth = 1, padding = 2,
-                   cornerradius = 2,
-                   # Inside the corner at the top edge, so it is not clipped
-                   text_align = hi == n ? (:right, :top) : (:left, :bottom))
+        poly!(hm, box; color=:transparent, strokecolor=:black, strokewidth=4)
+        poly!(hm, box; color=:transparent, strokecolor=colors[i], strokewidth=2)
+        textlabel!(
+            hm,
+            Point2d(hi + 0.5, hi + 0.5);
+            text=string(i),
+            fontsize=11,
+            background_color=colors[i],
+            strokewidth=1,
+            padding=2,
+            cornerradius=2,
+            # Inside the corner at the top edge, so it is not clipped
+            text_align=hi == n ? (:right, :top) : (:left, :bottom),
+        )
     end
 
     linkyaxes!(dend, hm)
