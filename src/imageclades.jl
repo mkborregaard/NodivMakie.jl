@@ -5,19 +5,19 @@
 # one slot wide as possible, and each clade is shown by its widest-ranging species.
 
 """
-    tipspans(layout) -> (first, last)
+    _tip_spans(layout) -> (first, last)
 
 For every node of `layout`, the first and last tip position (1..ntips) of its clade. A
 clade's tips are always a contiguous run, as tips are laid out in tree order.
 """
-function tipspans(l::TreeLayout)
+function _tip_spans(l::TreeLayout)
     n = length(l)
     lo, hi = fill(typemax(Int), n), fill(typemin(Int), n)
     for i in 1:n
         l.isleaf[i] || continue
         t = round(Int, l.depth[i])
         j = i
-        while j != 0 && t < lo[j] || j != 0 && t > hi[j]
+        while j != 0 && (t < lo[j] || t > hi[j])
             lo[j] = min(lo[j], t)
             hi[j] = max(hi[j], t)
             j = l.parent[j]
@@ -51,25 +51,27 @@ choice among the clades that end before it and whose centre is at least `w` befo
 own (a weighted interval scheduling over all clades).
 """
 function selectclades(l::TreeLayout, nslots::Integer; minclade = 0.5, circular = false)
-    lo, hi = tipspans(l)
-    T = ntips(l)
+    lo, hi = _tip_spans(l)
+    T = _ntips(l)
     w = T / clamp(nslots, 1, T)
     cand = findall(i -> hi[i] - lo[i] + 1 >= minclade * w - 1e-9, eachindex(lo))
     isempty(cand) && return Int[]
-    # prefix maxima of (images, species covered, clade) over twice the clade centres
+    # Prefix maxima of (images, species covered, clade) over twice the clade centres, in a
+    # Fenwick tree
     K = 2T
-    tree = fill((0, 0, 0), K)
-    function insert!(k, v)
+    fenwick = fill((0, 0, 0), K)
+    function raise!(k, v)
         while k <= K
-            tree[k] = max(tree[k], v)
+            fenwick[k] = max(fenwick[k], v)
             k += k & -k
         end
+        return nothing
     end
-    function query(k)
+    function prefixmax(k)
         v = (0, 0, 0)
         k = min(k, K)
         while k > 0
-            v = max(v, tree[k])
+            v = max(v, fenwick[k])
             k -= k & -k
         end
         return v
@@ -81,18 +83,18 @@ function selectclades(l::TreeLayout, nslots::Integer; minclade = 0.5, circular =
     for i in bylo
         while next <= length(byhi) && hi[byhi[next]] < lo[i]
             j = byhi[next]
-            insert!(lo[j] + hi[j], (best[j]..., j))
+            raise!(lo[j] + hi[j], (best[j]..., j))
             next += 1
         end
-        n, cov, j = query(floor(Int, lo[i] + hi[i] - 2w + 1e-9))
+        n, cov, j = prefixmax(floor(Int, lo[i] + hi[i] - 2w + 1e-9))
         best[i] = (n + 1, cov + hi[i] - lo[i] + 1)
         prev[i] = j
     end
-    last = argmax(i -> (best[i]..., -i), cand)
+    c = argmax(i -> (best[i]..., -i), cand)
     chosen = Int[]
-    while last != 0
-        push!(chosen, last)
-        last = prev[last]
+    while c != 0
+        push!(chosen, c)
+        c = prev[c]
     end
     reverse!(chosen)
     # a fan's ring closes: the first and last images must also be a slot apart
@@ -124,9 +126,12 @@ end
 
 # Range size per species name, from a Dict or an assemblage's occupancy (the number of
 # cells each species occupies)
-rangesizes(d::AbstractDict) = Dict(String(k) => Float64(v) for (k, v) in d)
-rangesizes(asm::EcoBase.AbstractAssemblage) =
+_range_sizes(d::AbstractDict) = Dict(String(k) => Float64(v) for (k, v) in d)
+_range_sizes(asm::EcoBase.AbstractAssemblage) =
     Dict(String(n) => Float64(o) for (n, o) in zip(EcoBase.thingnames(asm), occupancy(asm)))
+
+# Species by range size, largest first; ties alphabetically
+_by_range(species, rs) = sort(species; by = s -> (-get(rs, s, 0.0), s))
 
 """
     imageclades(layout, nslots, rangesize, images; minclade, circular) -> Vector{CladeImage}
@@ -134,15 +139,14 @@ rangesizes(asm::EcoBase.AbstractAssemblage) =
 The clades chosen by [`selectclades`](@ref) (which takes the keyword arguments), each with its representative species: the
 one with the largest range size among those with an image in `images` (anything with
 `haskey`, e.g. a [`SpeciesImages`](@ref)). `rangesize` is a Dict of species => range size
-or an assemblage (range size = number of occupied cells). Ties go alphabetically.
+or an assemblage (range size = number of _occupied cells). Ties go alphabetically.
 """
 function imageclades(l::TreeLayout, nslots::Integer, rangesize, images; kwargs...)
-    rs = rangesizes(rangesize)
-    lo, hi = tipspans(l)
-    tipnames = l.names[sortperm(l.depth .+ .!l.isleaf .* Inf)][1:ntips(l)]   # by position
-    byrange(sps) = sort(sps; by = s -> (-get(rs, s, 0.0), s))
+    rs = _range_sizes(rangesize)
+    lo, hi = _tip_spans(l)
+    tipnames = l.names[sortperm(l.depth .+ .!l.isleaf .* Inf)][1:_ntips(l)]   # by position
     return map(selectclades(l, nslots; kwargs...)) do i
-        sps = byrange(tipnames[lo[i]:hi[i]])
+        sps = _by_range(tipnames[lo[i]:hi[i]], rs)
         k = findfirst(s -> haskey(images, s), sps)
         CladeImage(l.names[i], lo[i]:hi[i], first(sps), k === nothing ? nothing : sps[k])
     end
@@ -171,7 +175,7 @@ Returns `(; nimages, size, radius)`: `size` in data units (tip units for a dendr
 """
 function imagegeometry(l::TreeLayout, treetype::Symbol; imagesize = automatic,
                        nimages = automatic, gap = 0.04, spacing = 0.1, shape = :circle)
-    T = ntips(l)
+    T = _ntips(l)
     room = (1 + spacing) * (shape === :circle ? 1.0 : sqrt(2))
     if treetype === :fan
         R = maximum(l.height)

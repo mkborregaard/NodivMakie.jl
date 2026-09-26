@@ -148,13 +148,14 @@ function explorertree!(gp, tree, node::Observable{String}, marked::AbstractDict;
     if images !== nothing
         rangesize === nothing &&
             throw(ArgumentError("Species images around the tree need `rangesize`, e.g. the assemblage"))
-        images isa AbstractString && (images = SpeciesImages(images))
         ti = treeimages!(ax, tp, images, rangesize; imageoptions...)
     end
     Colorbar(gl[3, 1], tp; vertical = false, flipaxis = false, label,
              tellheight = true, width = Relative(0.6))
 
-    describe(n) = haskey(values, n) && values[n] isa Real ? "$n   $label = $(round(values[n]; sigdigits = 3))" : n
+    hasvalue(n) = haskey(values, n) && values[n] isa Real
+    valuetext(n) = "$label = $(round(values[n]; sigdigits = 3))"
+    describe(n) = hasvalue(n) ? "$n   $(valuetext(n))" : n
     status[] = describe(node[])
     on(n -> (status[] = describe(n)), node)
     _onnodeclick(ax, tp, pickfn) do n
@@ -166,10 +167,8 @@ function explorertree!(gp, tree, node::Observable{String}, marked::AbstractDict;
     end
     # hover labels: the node, its size, and its value
     function hover(n)
-        k = tp.tree_layout[].index[n]
-        lab = tp.tree_layout[].isleaf[k] ? n : "$n  ($(tp.clade_sizes[][k]) species)"
-        haskey(values, n) && values[n] isa Real && isfinite(values[n]) &&
-            (lab *= "\n$label = $(round(values[n]; sigdigits = 3))")
+        lab = _node_label(tp, n)
+        hasvalue(n) && isfinite(values[n]) && (lab *= "\n" * valuetext(n))
         return lab
     end
     tp.hoverlabel = hover
@@ -198,21 +197,21 @@ struct NodeExplorer
     ordinationaxis::Union{Axis, Nothing}
 end
 
-metricvalues(res, metric::Symbol) = node_scores(res, metric)
-metricvalues(res, metric::AbstractDict) = metric
+_metric_values(res, metric::Symbol) = node_scores(res, metric)
+_metric_values(res, metric::AbstractDict) = metric
 
 # The metric shown by default: Nodiv's default divergence score for the result type
-defaultmetric(res::Nodiv.AbstractNodeResult) = default_score(res)
-defaultmetric(res) = :gnd
+_default_metric(res::Nodiv.AbstractNodeResult) = default_score(res)
+_default_metric(res) = :gnd
 
 # The nodes marked by default: Nodiv's `divergent_nodes`, with its default threshold,
 # ranked by the metric shown where `divergent_nodes` supports it
-function defaultnodes(res::Nodiv.NodeMetrics, metric)
+function _default_nodes(res::Nodiv.NodeMetrics, metric)
     by = metric isa Symbol && metric in (:rms, :pval, :gnd) ? metric : :rms
     return divergent_nodes(res; by)
 end
-defaultnodes(res::Nodiv.NodeAnalysis, metric) = divergent_nodes(res)
-defaultnodes(res, metric) = collect(keys(sosvalues(res)))   # a plain SOS Dict
+_default_nodes(res::Nodiv.NodeAnalysis, metric) = divergent_nodes(res)
+_default_nodes(res, metric) = collect(keys(_sos_values(res)))   # a plain SOS Dict
 
 """
     nodeexplorer(assemblage, tree, res; kwargs...)
@@ -265,7 +264,7 @@ Returns `(figure, explorer)`; see [`NodeExplorer`](@ref). Clicking needs an inte
 backend (`using GLMakie`); with CairoMakie you get the figure for the initial node.
 The tree side is [`explorertree!`](@ref), which builds explorers with other panels.
 """
-function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
+function nodeexplorer(assemblage, tree, res; metric = _default_metric(res),
                       nodes = automatic, node = automatic, treetype = :fan,
                       showtips = false, colormap = :YlOrRd, colorrange = automatic,
                       markersize = 14, strokewidth = 1, strokecolor = :gray20,
@@ -273,30 +272,18 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
                       imageoptions = (;), treekw = (;), ordination = true,
                       ordinationkw = (;), panel = (;), figure = (;),
                       inspector = true, pickfn = pick)
-    sos = sosvalues(res)
-    vals = metricvalues(res, metric)
-    nodes = nodes === automatic ? defaultnodes(res, metric) :
-            nodes === :all ? collect(keys(sos)) : collect(nodes)
-    marked = Dict(n => Float64(vals[n]) for n in nodes
-                  if haskey(vals, n) && isfinite(vals[n]) && hassos(tree, sos, n))
-    isempty(marked) && throw(ArgumentError("None of `nodes` has both an SOS and a finite " *
-                                           "metric value; pass `nodes = :all` to mark every node with an SOS"))
-    node = if node !== automatic
-        String(node)
-    elseif metric isa Symbol
-        most_divergent(res, collect(keys(marked)); by = metric)
-    else
-        argmax(n -> marked[n], keys(marked))
-    end
+    sos = _sos_values(res)
+    vals = _metric_values(res, metric)
+    marked = _marked_nodes(res, tree, vals, nodes, metric)
+    node = node === automatic ? _initial_node(res, marked, metric) : String(node)
     label = metric isa Symbol ? string(metric) : "value"
 
     fig = Figure(; size = (1600, 850), figure...)
     showordination = ordination && length(marked) >= 3
     np = nodepanel!(fig[1, 2], assemblage, tree, node, res;
                     merge((; colorinset = focusinset, clademap = !showordination), panel)...)
-    rangesize = get(imageoptions, :rangesize, assemblage)
-    opts = Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})
-    images isa AbstractString && (images = SpeciesImages(images))
+    rangesize, opts = _image_options(imageoptions, assemblage)
+    images = _species_images(images)
     et = explorertree!(fig[1, 1], tree, np.node, marked; values = vals, label,
                        selectable = n -> hassos(tree, sos, n), treetype, showtips,
                        colormap, colorrange, markersize, strokewidth, strokecolor,
@@ -309,22 +296,52 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
         cladeimages!(np, tree, images, rangesize; pixelsize = et.images.pixelsize, shared...)
     end
 
-    # the marked nodes by SOS similarity, coloured like the tree's markers, with the tree's
-    # hover labels; a click on a point selects its node, and the node shown has a ring
     op, oax = nothing, nothing
     if showordination
-        ord = sos_ordination(res, sort!(collect(keys(marked))); ordinationkw...)
-        oax = Axis(np.layout[1, 1]; title = "SOS similarity ($(length(ord.nodes)) nodes)",
-                   xlabel = "MDS axis 1", ylabel = "MDS axis 2", autolimitaspect = 1,
-                   xgridvisible = false, ygridvisible = false)
-        op = ordinationplot!(oax, ord; nodecolor = marked, colormap,
-                             colorrange = tp.joint_colorrange[], markersize, strokewidth,
-                             strokecolor, selected = node, hoverlabel = tp.hoverlabel[])
-        on(n -> (op.selected = n), np.node)
-        _onnodeclick(n -> (np.node[] = n), oax, op, pickfn)
+        op, oax = _explorer_ordination!(np, res, tp, marked; colormap, markersize,
+                                        strokewidth, strokecolor, ordinationkw, pickfn)
     end
     di = inspector ? DataInspector(fig) : nothing
     return fig, NodeExplorer(fig, et.axis, tp, np, et.status, et.images, di, op, oax)
+end
+
+# The nodes the explorer marks, as node name => metric value: `nodes` (by default the
+# divergent nodes, or every node with an SOS for `:all`) that have an SOS and a finite value
+function _marked_nodes(res, tree, vals, nodes, metric)
+    sos = _sos_values(res)
+    if nodes === automatic
+        nodes = _default_nodes(res, metric)
+    elseif nodes === :all
+        nodes = collect(keys(sos))
+    end
+    marked = Dict(n => Float64(vals[n]) for n in nodes
+                  if haskey(vals, n) && isfinite(vals[n]) && hassos(tree, sos, n))
+    isempty(marked) && throw(ArgumentError("None of `nodes` has both an SOS and a finite " *
+                                           "metric value; pass `nodes = :all` to mark every node with an SOS"))
+    return marked
+end
+
+# The node shown first: the most divergent marked node
+function _initial_node(res, marked, metric)
+    metric isa Symbol && return most_divergent(res, collect(keys(marked)); by = metric)
+    return argmax(n -> marked[n], keys(marked))
+end
+
+# The marked nodes by SOS similarity, in the panel's free top-left cell: coloured like the
+# tree's markers, with the tree's hover labels. A click on a point shows its node, and the
+# node shown has a ring.
+function _explorer_ordination!(np, res, tp, marked; colormap, markersize, strokewidth,
+                               strokecolor, ordinationkw, pickfn)
+    ord = sos_ordination(res, sort!(collect(keys(marked))); ordinationkw...)
+    oax = Axis(np.layout[1, 1]; title = "SOS similarity ($(length(ord.nodes)) nodes)",
+               xlabel = "MDS axis 1", ylabel = "MDS axis 2", autolimitaspect = 1,
+               xgridvisible = false, ygridvisible = false)
+    op = ordinationplot!(oax, ord; nodecolor = marked, colormap,
+                         colorrange = tp.joint_colorrange[], markersize, strokewidth,
+                         strokecolor, selected = np.node[], hoverlabel = tp.hoverlabel[])
+    on(n -> (op.selected = n), np.node)
+    _onnodeclick(n -> (np.node[] = n), oax, op, pickfn)
+    return op, oax
 end
 
 """

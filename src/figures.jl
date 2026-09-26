@@ -40,7 +40,7 @@ Returns a `FigureAxisPlot`.
 function metric_tree(tree, res::Nodiv.AbstractNodeResult; metric = default_score(res),
                      nodes = automatic, label = string(metric),
                      colorrange = metric === :gnd ? (0, 1) : automatic, kwargs...)
-    nodes = nodes === automatic ? defaultnodes(res, metric) : nodes
+    nodes = nodes === automatic ? _default_nodes(res, metric) : nodes
     return metric_tree(tree, node_scores(res, metric); nodes, label, colorrange, kwargs...)
 end
 

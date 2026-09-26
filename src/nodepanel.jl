@@ -26,7 +26,13 @@ struct NodePanel
     sos::AbstractDict
 end
 
-sosvalues(res::Nodiv.AbstractNodeResult) = res.sos
+# The SOS vectors of a result, or a Dict of node name => SOS vector as it is
+_sos_values(res::Nodiv.AbstractNodeResult) = res.sos
+_sos_values(d::AbstractDict) = d
+
+# A node given as a name or as an `Observable` of one
+_node_observable(node::Observable) = node
+_node_observable(node) = Observable(String(node))
 
 """
     cladecolors(sos_colormap; inset = 0.15) -> (first, second)
@@ -40,7 +46,6 @@ function cladecolors(sos_colormap; inset = 0.15)
     return Makie.interpolated_getindex(cmap, 1.0 - inset),
            Makie.interpolated_getindex(cmap, Float64(inset))
 end
-sosvalues(d::AbstractDict) = d
 
 """
     hassos(tree, sos, node)
@@ -51,18 +56,12 @@ two children.
 hassos(tree, sos, node) = haskey(sos, node) && hasnode(tree, node) &&
                           length(getchildren(tree, node)) >= 2
 
-function occupied(r)
-    v = Float64.(r)
-    v[v .== 0] .= NaN
-    return v
-end
-
 # The four maps' values and titles for one node. `richness_of` is Nodiv's
 # `clade_richness(assemblage, tree)`, fast enough for clicking through nodes.
-function nodepaneldata(richness_of, tree, sos, node)
+function _node_panel_data(richness_of, tree, sos, node)
     ch1, ch2 = [getnodename(tree, c) for c in getchildren(tree, node)[1:2]]
-    return (values = [occupied(richness_of(node)), sitevalues(sos[node]),
-                      occupied(richness_of(ch1)), occupied(richness_of(ch2))],
+    return (values = [_occupied(richness_of(node)), _site_values(sos[node]),
+                      _occupied(richness_of(ch1)), _occupied(richness_of(ch2))],
             titles = [node, "SOS", ch1, ch2])
 end
 
@@ -95,24 +94,24 @@ function nodepanel!(gp, assemblage, tree, node, res;
                     sos_colorrange = (-8, 8), colorbars = true, axis = (;),
                     images = nothing, imageoptions = (;), titlecolors = true,
                     colorinset = 0.15, clademap = true)
-    sos = sosvalues(res)
-    node = node isa Observable ? node : Observable(String(node))
+    sos = _sos_values(res)
+    node = _node_observable(node)
     hassos(tree, sos, node[]) ||
         throw(ArgumentError("Node $(node[]) has no SOS in the result or fewer than two children"))
 
     # Only valid nodes reach the maps; an invalid one leaves the panel as it was
     richness_of = clade_richness(assemblage, tree)
-    data = Observable(nodepaneldata(richness_of, tree, sos, node[]))
+    data = Observable(_node_panel_data(richness_of, tree, sos, node[]))
     on(node) do n
         if hassos(tree, sos, n)
-            data[] = nodepaneldata(richness_of, tree, sos, n)
+            data[] = _node_panel_data(richness_of, tree, sos, n)
         else
             @warn "Node $n has no SOS in the result or fewer than two children; not shown"
         end
     end
 
     gl = GridLayout(gp)
-    locs = sitelocations(assemblage)
+    locs = _site_locations(assemblage)
     axes, maps, cbs = Union{Axis, Nothing}[], Any[], Colorbar[]
     for (i, (row, col)) in enumerate(((1, 1), (1, 2), (2, 1), (2, 2)))
         if i == 1 && !clademap
@@ -135,9 +134,8 @@ function nodepanel!(gp, assemblage, tree, node, res;
     end
     np = NodePanel(node, gl, axes, maps, cbs, sos)
     if images !== nothing
-        rangesize = get(imageoptions, :rangesize, assemblage)
-        cladeimages!(np, tree, images, rangesize;
-                     Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})...)
+        rangesize, opts = _image_options(imageoptions, assemblage)
+        cladeimages!(np, tree, images, rangesize; opts...)
     end
     return np
 end
@@ -169,15 +167,15 @@ Keyword arguments:
 """
 function sosmap!(gp, assemblage, node, res; title = "SOS", colormap = :RdYlBu,
                  colorrange = (-8, 8), colorbar = true, axis = (;))
-    sos = sosvalues(res)
-    node = node isa Observable ? node : Observable(String(node))
+    sos = _sos_values(res)
+    node = _node_observable(node)
     haskey(sos, node[]) || throw(ArgumentError("Node $(node[]) has no SOS in the result"))
     shown = Observable(node[])
     on(n -> haskey(sos, n) && (shown[] = n), node)
     gl = GridLayout(gp)
     ax = Axis(gl[1, 1]; title = title isa Function ? lift(title, shown) : title,
               autolimitaspect = 1, xgridvisible = false, ygridvisible = false, axis...)
-    m = sitemap!(ax, lift(n -> sitevalues(sos[n]), shown), sitelocations(assemblage);
+    m = sitemap!(ax, lift(n -> _site_values(sos[n]), shown), _site_locations(assemblage);
                  colormap, colorrange)
     colorbar && Colorbar(gl[1, 2], m; width = 10)
     return ax, m

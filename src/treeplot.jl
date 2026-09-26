@@ -103,30 +103,42 @@ Makie.convert_arguments(::Type{<:TreePlot}, tree::Phylo.AbstractTree) = (tree,)
 
 ## Resolving per-node specifications -------------------------------------------------
 
-iscolorspec(x) = x isa Union{Symbol, Colorant, Tuple{Union{Symbol, Colorant}, Real}}
+_is_color_spec(x) = x isa Union{Symbol, Colorant, Tuple{Union{Symbol, Colorant}, Real}}
 
-# One value per node in layout order, `missing` where the spec has no value.
-pernode(x::AbstractDict, tree, l) = Any[get(x, name, missing) for name in l.names]
-pernode(x::AbstractString, tree, l) = Any[getnodedata(tree, name)[x] for name in l.names]
-pernode(f::Function, tree, l) = Any[f(name) for name in l.names]
-function pernode(x::AbstractVector, tree, l)
+# One value per node of `names`, `missing` where the spec has no value
+_per_node(x::AbstractDict, names) = Any[get(x, n, missing) for n in names]
+_per_node(f::Function, names) = Any[f(n) for n in names]
+function _per_node(x::AbstractVector, names)
+    length(x) == length(names) ||
+        throw(ArgumentError("A per-node vector must have one value per node ($(length(names))); got $(length(x))"))
+    return Vector{Any}(x)
+end
+
+# The same in a tree's layout order, where the spec can also be a node-data field, and
+# a vector can have values for the internal nodes or the tips only
+_per_node(x::Union{AbstractDict, Function}, tree, l) = _per_node(x, l.names)
+_per_node(x::AbstractString, tree, l) = Any[getnodedata(tree, name)[x] for name in l.names]
+function _per_node(x::AbstractVector, tree, l)
     n = length(x)
     n == length(l) && return Vector{Any}(x)
     ret = Vector{Any}(missing, length(l))
     if n == count(!, l.isleaf)
         ret[.!l.isleaf] .= x
-    elseif n == ntips(l)
+    elseif n == _ntips(l)
         ret[l.isleaf] .= x
     else
         throw(ArgumentError("A per-node vector must have one value per node ($(length(l))), " *
-                            "internal node ($(count(!, l.isleaf))) or tip ($(ntips(l))); got $n"))
+                            "internal node ($(count(!, l.isleaf))) or tip ($(_ntips(l))); got $n"))
     end
     return ret
 end
 
+# Per-node values as label texts; no text where a value is missing
+_label_texts(vals) = String[v isa Union{Missing, Nothing} ? "" : string(v) for v in vals]
+
 # Numeric values -> Float64 with NaN for missing (to go through the colormap);
 # anything else is taken as one colour per node.
-function colorvalues(vals, nancolor)
+function _color_values(vals, nancolor)
     if all(v -> v isa Union{Real, Missing, Nothing}, vals)
         return Float64[v isa Real ? v : NaN for v in vals]
     end
@@ -135,18 +147,18 @@ function colorvalues(vals, nancolor)
 end
 
 # Does this spec give a value for every node (-> :all), tips only (-> :tips)?
-function spec_coverage(x, l)
+function _spec_coverage(x, l)
     x isa Union{AbstractDict, AbstractString, Function} && return :all
     if x isa AbstractVector
         length(x) == length(l) && return :all
-        length(x) == ntips(l) && return :tips
+        length(x) == _ntips(l) && return :tips
     end
     return :internal
 end
 
-function shown_indices(l::TreeLayout, shownodes, specs...)
+function _shown_indices(l::TreeLayout, shownodes, specs...)
     if shownodes === automatic
-        covs = [spec_coverage(s, l) for s in specs if !(s === nothing || s isa Bool || iscolorspec(s))]
+        covs = [_spec_coverage(s, l) for s in specs if !(s === nothing || s isa Bool || _is_color_spec(s))]
         shownodes = :all in covs ? :all : :tips in covs ? :tips : :internal
     end
     shownodes === :all && return collect(eachindex(l.names))
@@ -165,18 +177,18 @@ function Makie.plot!(p::TreePlot)
 
     map!(treelayout, p, :tree, :tree_layout)
     map!(p, [:tree_layout, :treetype], [:branch_points, :branch_owner]) do l, tt
-        return branchpaths(l, tt)
+        return _branch_paths(l, tt)
     end
-    map!(nodepositions, p, [:tree_layout, :treetype], :node_points)
+    map!(_node_positions, p, [:tree_layout, :treetype], :node_points)
     map!(p, :tree_layout, :clade_sizes) do l
-        lo, hi = tipspans(l)
+        lo, hi = _tip_spans(l)
         return hi .- lo .+ 1
     end
 
     map!(p, [:tree, :tree_layout, :branch_owner, :branchcolor, :branch_nan_color],
          :branch_colors) do tree, l, owner, bc, nanc
-        iscolorspec(bc) && return bc
-        return colorvalues(pernode(bc, tree, l), nanc)[owner]
+        _is_color_spec(bc) && return bc
+        return _color_values(_per_node(bc, tree, l), nanc)[owner]
     end
 
     # The nodes with markers/labels and their per-node attributes
@@ -184,17 +196,16 @@ function Makie.plot!(p::TreePlot)
              :nodegroup, :nodelabels, :nan_color, :showtips],
          [:shown, :marker_points, :marker_colors, :marker_sizes, :marker_groups,
           :label_points, :label_texts]) do tree, l, pts, shownodes, nc, ms, grp, lab, nanc, st
-        shown = shown_indices(l, shownodes, nc, ms, grp, lab)
+        shown = _shown_indices(l, shownodes, nc, ms, grp, lab)
         colors = nc === nothing ? :black :
-                 iscolorspec(nc) ? nc : colorvalues(pernode(nc, tree, l)[shown], nanc)
+                 _is_color_spec(nc) ? nc : _color_values(_per_node(nc, tree, l)[shown], nanc)
         sizes = ms === nothing ? 8.0 : ms isa Real ? Float64(ms) :
-                Float64[v isa Real ? v : 0.0 for v in pernode(ms, tree, l)[shown]]
-        groups = grp === nothing ? nothing : pernode(grp, tree, l)[shown]
+                Float64[v isa Real ? v : 0.0 for v in _per_node(ms, tree, l)[shown]]
+        groups = grp === nothing ? nothing : _per_node(grp, tree, l)[shown]
         texts = lab === nothing || lab === false ? fill("", length(shown)) :
                 # tips already carry their names when showtips is on
                 lab === true ? [st && l.isleaf[i] ? "" : l.names[i] for i in shown] :
-                String[v isa Union{Missing, Nothing} ? "" : string(v)
-                       for v in pernode(lab, tree, l)[shown]]
+                _label_texts(_per_node(lab, tree, l)[shown])
         haslabel = .!isempty.(texts)
         return shown, pts[shown], colors, sizes, groups, pts[shown][haslabel], texts[haslabel]
     end
@@ -203,13 +214,13 @@ function Makie.plot!(p::TreePlot)
          [:tip_points, :tip_texts, :tip_rotations, :tip_aligns, :tip_offsets]) do l, tt, off
         tips = findall(l.isleaf)
         if tt === :fan
-            θs = fanangle.(l.depth[tips], ntips(l))
+            θs = _fan_angle.(l.depth[tips], _ntips(l))
             # names on the left half are flipped so they read left to right
             flip = cos.(θs) .< 0
             rot = [f ? θ + pi : θ for (θ, f) in zip(θs, flip)]
             align = [f ? (:right, :center) : (:left, :center) for f in flip]
             offs = [Vec2f(off * cos(θ), off * sin(θ)) for θ in θs]
-            pts = [polar(r, θ) for (r, θ) in zip(l.height[tips], θs)]
+            pts = [_polar(r, θ) for (r, θ) in zip(l.height[tips], θs)]
         else
             rot = zeros(length(tips))
             align = fill((:left, :center), length(tips))
@@ -249,8 +260,7 @@ function Makie.plot!(p::TreePlot)
         n === nothing && return ""
         f = p.hoverlabel[]
         f === automatic || return string(f(n))
-        k = p.tree_layout[].index[n]
-        return p.tree_layout[].isleaf[k] ? n : "$n  ($(p.clade_sizes[][k]) species)"
+        return _node_label(p, n)
     end
 
     cmap = (colormap = p.colormap, colorscale = p.colorscale, colorrange = p.joint_colorrange,
@@ -301,6 +311,12 @@ function Makie.plot!(p::TreePlot)
           align = p.tip_aligns, offset = p.tip_offsets, fontsize = p.tipfontsize,
           color = p.tipcolor, font = p.tipfont, visible = p.showtips, inspectable = false)
     return p
+end
+
+# A node's name, with its number of species for an internal node
+function _node_label(p::TreePlot, n)
+    k = p.tree_layout[].index[n]
+    return p.tree_layout[].isleaf[k] ? n : "$n  ($(p.clade_sizes[][k]) species)"
 end
 
 # Axis defaults, like Phylo's `framestyle = :none, grid = false` and the fan's

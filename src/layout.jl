@@ -40,31 +40,31 @@ function treelayout(tree::Phylo.AbstractTree)
 end
 
 Base.length(l::TreeLayout) = length(l.names)
-ntips(l::TreeLayout) = count(l.isleaf)
+_ntips(l::TreeLayout) = count(l.isleaf)
 
 # Angle of a depth value in a fan tree; tips are spread over the full circle with a
 # one-tip gap between the first and the last, as in Phylo.
-fanangle(depth, ntip) = 2pi * depth / (ntip + 1)
+_fan_angle(depth, ntip) = 2pi * depth / (ntip + 1)
 
-polar(r, θ) = Point2d(r * cos(θ), r * sin(θ))
+_polar(r, θ) = Point2d(r * cos(θ), r * sin(θ))
 
 """
-    nodepositions(layout, treetype)
+    _node_positions(layout, treetype)
 
 Coordinates of every node for `treetype` `:dendrogram` or `:fan`.
 """
-function nodepositions(l::TreeLayout, treetype::Symbol)
+function _node_positions(l::TreeLayout, treetype::Symbol)
     if treetype === :dendrogram
         return Point2d.(l.height, l.depth)
     elseif treetype === :fan
-        nt = ntips(l)
-        return [polar(r, fanangle(d, nt)) for (r, d) in zip(l.height, l.depth)]
+        nt = _ntips(l)
+        return [_polar(r, _fan_angle(d, nt)) for (r, d) in zip(l.height, l.depth)]
     end
     throw(ArgumentError("Unsupported `treetype` $(repr(treetype)); valid values are `:dendrogram` or `:fan`"))
 end
 
 """
-    branchpaths(layout, treetype)
+    _branch_paths(layout, treetype)
 
 One polyline per branch, NaN-separated, for drawing with `lines`. Returns the points
 and, for each point, the index of the node the branch leads to, so per-node values can
@@ -73,11 +73,11 @@ be expanded to per-vertex colours.
 A dendrogram branch runs vertically along its parent's height, then horizontally to
 the node. A fan branch runs along an arc at its parent's radius, then radially out.
 """
-function branchpaths(l::TreeLayout, treetype::Symbol)
+function _branch_paths(l::TreeLayout, treetype::Symbol)
     pts = Point2d[]
     owner = Int[]
     nan = Point2d(NaN, NaN)
-    nt = ntips(l)
+    nt = _ntips(l)
     for i in eachindex(l.names)
         p = l.parent[i]
         p == 0 && continue
@@ -86,14 +86,14 @@ function branchpaths(l::TreeLayout, treetype::Symbol)
         if treetype === :dendrogram
             push!(pts, Point2d(hp, dp), Point2d(hp, di), Point2d(hi, di))
         elseif treetype === :fan
-            θp, θi = fanangle(dp, nt), fanangle(di, nt)
+            θp, θi = _fan_angle(dp, nt), _fan_angle(di, nt)
             # same arc resolution as Phylo's `_p_circ`
             for θ in range(θp, θi; length = 1 + ceil(Int, 60abs(θi - θp)))
-                push!(pts, polar(hp, θ))
+                push!(pts, _polar(hp, θ))
             end
-            push!(pts, polar(hi, θi))
+            push!(pts, _polar(hi, θi))
         else
-            nodepositions(l, treetype)  # throws the informative error
+            _node_positions(l, treetype)  # throws the informative error
         end
         push!(pts, nan)
         append!(owner, Iterators.repeated(i, length(pts) - n0))

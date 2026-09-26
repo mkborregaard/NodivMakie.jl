@@ -31,7 +31,7 @@ missingimages(ti::TreeImages) = [c.species for c in ti.clades if c.shown === not
 # An outline around an image of width `w` centred at (x, y) in axis units `sx`, `sy`
 # per unit of width (as a polyline, so it stays a circle on screen however the axis
 # is scaled), NaN-separated for drawing many at once
-function outlinepoints!(pts, x, y, w, sx, sy, shape)
+function _outline_points!(pts, x, y, w, sx, sy, shape)
     if shape === :circle
         for φ in range(0, 2pi; length = 65)
             push!(pts, Point2d(x + w / 2 * sx * cos(φ), y + w / 2 * sy * sin(φ)))
@@ -46,7 +46,7 @@ end
 
 # Whether the cursor is over a visible pixel of an image plot (at least half opaque), so
 # the transparent surroundings of a bird do not count as the image
-function overimage(plot)
+function _over_image(plot)
     scene = Makie.parent_scene(plot)
     pos = plot.space[] === :pixel ? Makie.mouseposition_px(scene) : Makie.mouseposition(scene)
     (x0, x1), (y0, y1) = plot[1][].data, plot[2][].data
@@ -62,10 +62,10 @@ end
 # or an Observable of one) as a plain tooltip; over its transparent parts, whatever is
 # underneath is inspected instead. Makie's own image tooltip shows the pixel's colour and
 # marks the pixel; this shows only the text. The text is also the plot's `inspector_label`.
-function imagehover!(p, text)
+function _image_hover!(p, text)
     p.inspector_label = (plot, idx, pos) -> string(to_value(text))
     p.inspector_hover = function (inspector, plot, idx)
-        overimage(plot) || return false
+        _over_image(plot) || return false
         pos = Point2f(Makie.mouseposition_px(inspector.root))
         Makie.update_tooltip_alignment!(inspector, pos; text = string(to_value(text)))
         return true
@@ -74,7 +74,7 @@ function imagehover!(p, text)
     return p
 end
 
-displayname(sp) = replace(sp, "_" => " ")
+_display_name(sp) = replace(sp, "_" => " ")
 
 """
     treeimages!(ax, treeplot, images, rangesize; kwargs...) -> TreeImages
@@ -84,7 +84,7 @@ column right of a dendrogram (in a narrow axis added beside `ax`, linked in y).
 
 - `images`: a [`SpeciesImages`](@ref), or the path of a directory of images named by
   species (e.g. `Carduelis_hornemanni.jpg`). No images come with the package.
-- `rangesize`: an assemblage (range size = number of occupied cells) or a Dict of
+- `rangesize`: an assemblage (range size = number of _occupied cells) or a Dict of
   species => range size.
 
 How many images fit follows from their size (see [`imagegeometry`](@ref)); that many
@@ -125,7 +125,7 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
                      cladecolor = :gray50, minclade = 0.5, fit = :pad,
                      whitebackground = false, clip = 0.0)
     shape in (:circle, :square) || throw(ArgumentError("`shape` must be :circle or :square"))
-    images isa AbstractString && (images = SpeciesImages(images))
+    images = _species_images(images)
     l, tt = tp.tree_layout[], tp.treetype[]
     geo = imagegeometry(l, tt; imagesize, nimages, gap, spacing, shape)
     clades = imageclades(l, geo.nimages, rangesize, images; minclade,
@@ -134,22 +134,22 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
     nmissing > 0 &&
         @info "$nmissing of $(length(clades)) image positions have no image for any species of their clade; `missingimages` lists the species to find"
     centre(c) = (first(c.tips) + last(c.tips)) / 2
-    hovertext(c) = "$(displayname(c.shown))\nfor $(c.clade) ($(length(c.tips)) species)"
+    hovertext(c) = "$(_display_name(c.shown))\nfor $(c.clade) ($(length(c.tips)) species)"
     shown = filter(c -> c.shown !== nothing, clades)
     s = geo.size
     plots = Any[]
 
     if tt === :fan
-        T = ntips(l)
-        pts = [polar(geo.radius, fanangle(centre(c), T)) for c in shown]
+        T = _ntips(l)
+        pts = [_polar(geo.radius, _fan_angle(centre(c), T)) for c in shown]
         for (c, p) in zip(shown, pts)
-            img = markerimage(images[c.shown], shape; fit, whitebackground, clip)
+            img = _marker_image(images[c.shown], shape; fit, whitebackground, clip)
             ip = image!(ax, (p[1] - s / 2) .. (p[1] + s / 2), (p[2] - s / 2) .. (p[2] + s / 2), img)
-            push!(plots, imagehover!(ip, hovertext(c)))
+            push!(plots, _image_hover!(ip, hovertext(c)))
         end
         outline = Point2d[]
         for p in pts
-            outlinepoints!(outline, p[1], p[2], s, 1, 1, shape)
+            _outline_points!(outline, p[1], p[2], s, 1, 1, shape)
         end
         imgax = ax
         pixelsize = lift((vp, lims) -> s * vp.widths[1] / max(lims.widths[1], eps()),
@@ -158,9 +158,9 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
             R = maximum(l.height)
             arcs = Point2d[]
             for c in clades
-                θs = range(fanangle(first(c.tips) - 0.4, T), fanangle(last(c.tips) + 0.4, T);
+                θs = range(_fan_angle(first(c.tips) - 0.4, T), _fan_angle(last(c.tips) + 0.4, T);
                            length = 2 + ceil(Int, 60 * length(c.tips) / T))
-                append!(arcs, polar.(R * (1 + gap / 2), θs))
+                append!(arcs, _polar.(R * (1 + gap / 2), θs))
                 push!(arcs, Point2d(NaN, NaN))
             end
             push!(plots, lines!(ax, arcs; color = cladecolor, linewidth = 1.5, inspectable = false))
@@ -184,14 +184,14 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
         on(pxy -> (imgax.width = max(1.0, s * pxy * (1 + g))), pixels_per_tip; update = true)
         pixelsize = lift(pxy -> s * pxy, pixels_per_tip)
         for c in shown
-            img = markerimage(images[c.shown], shape; fit, whitebackground, clip)
+            img = _marker_image(images[c.shown], shape; fit, whitebackground, clip)
             y = centre(c)
             ip = image!(imgax, 0.0 .. 1.0, (y - s / 2) .. (y + s / 2), img)
-            push!(plots, imagehover!(ip, hovertext(c)))
+            push!(plots, _image_hover!(ip, hovertext(c)))
         end
         outline = Point2d[]
         for c in shown
-            outlinepoints!(outline, 0.5, centre(c), s, 1 / s, 1, shape)
+            _outline_points!(outline, 0.5, centre(c), s, 1 / s, 1, shape)
         end
         if showclades
             H = maximum(l.height)
@@ -208,6 +208,13 @@ function treeimages!(ax::Axis, tp::TreePlot, images, rangesize; imagesize = auto
                             inspectable = false))
     end
     return TreeImages(clades, geo, imgax, plots, pixelsize)
+end
+
+# `imageoptions` split into the range sizes (`default` unless it has a `rangesize`) and
+# the keyword arguments for the image functions
+function _image_options(imageoptions, default)
+    rangesize = get(imageoptions, :rangesize, default)
+    return rangesize, Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})
 end
 
 """
@@ -230,12 +237,12 @@ Returns the two image plots.
 """
 function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, margin = 6,
                       shape = :circle, fit = :pad, whitebackground = false, clip = 0.0)
-    images isa AbstractString && (images = SpeciesImages(images))
-    rs = rangesizes(rangesize)
+    images = _species_images(images)
+    rs = _range_sizes(rangesize)
     function representative(clade)
         sps = filter(s -> haskey(images, s), nodespecies(tree, clade))
         isempty(sps) && return nothing
-        return first(sort(sps; by = s -> (-get(rs, s, 0.0), s)))
+        return first(_by_range(sps, rs))
     end
     child(n, k) = getnodename(tree, getchildren(tree, n)[k])
     px = pixelsize isa Observable ? pixelsize : Observable(Float64(pixelsize))
@@ -246,13 +253,13 @@ function cladeimages!(np::NodePanel, tree, images, rangesize; pixelsize = 60, ma
         species = Observable{Union{String, Nothing}}(representative(child(np.node[], k)))
         on(n -> (species[] = representative(child(n, k))), np.node)
         img = lift(sp -> sp === nothing ? blank :
-                         markerimage(images[sp], shape; fit, whitebackground, clip), species)
+                         _marker_image(images[sp], shape; fit, whitebackground, clip), species)
         xs = lift((vp, s) -> (vp.widths[1] - margin - s) .. (vp.widths[1] - margin),
                   ax.scene.viewport, px)
         ys = lift((vp, s) -> (vp.widths[2] - margin - s) .. (vp.widths[2] - margin),
                   ax.scene.viewport, px)
         p = image!(ax.scene, xs, ys, img; space = :pixel, visible = lift(!isnothing, species))
-        imagehover!(p, lift(sp -> sp === nothing ? "" : displayname(sp), species))
+        _image_hover!(p, lift(sp -> sp === nothing ? "" : _display_name(sp), species))
         translate!(p, 0, 0, 1)                   # above the map
         push!(plots, p)
     end

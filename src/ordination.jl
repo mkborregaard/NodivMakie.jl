@@ -38,27 +38,18 @@ end
 
 Makie.convert_arguments(::Type{<:OrdinationPlot}, o::SOSOrdination) = (o,)
 
-# One value per node of the ordination, `missing` where the spec has none
-ordvalues(x::AbstractDict, nodes) = Any[get(x, n, missing) for n in nodes]
-ordvalues(f::Function, nodes) = Any[f(n) for n in nodes]
-function ordvalues(x::AbstractVector, nodes)
-    length(x) == length(nodes) ||
-        throw(ArgumentError("A per-node vector must have one value per node ($(length(nodes))); got $(length(x))"))
-    return Vector{Any}(x)
-end
-
 function Makie.plot!(p::OrdinationPlot)
     map!(p, :ordination, :points) do o
         y = size(o.coords, 1) >= 2 ? o.coords[2, :] : zeros(length(o.nodes))
         return Point2d.(o.coords[1, :], y)
     end
     map!(p, [:ordination, :nodecolor, :nan_color], :point_colors) do o, nc, nanc
-        return iscolorspec(nc) ? nc : colorvalues(ordvalues(nc, o.nodes), nanc)
+        return _is_color_spec(nc) ? nc : _color_values(_per_node(nc, o.nodes), nanc)
     end
     map!(p, [:ordination, :nodelabels], :label_texts) do o, lab
         (lab === nothing || lab === false) && return fill("", length(o.nodes))
         lab === true && return copy(o.nodes)
-        return String[v isa Union{Missing, Nothing} ? "" : string(v) for v in ordvalues(lab, o.nodes)]
+        return _label_texts(_per_node(lab, o.nodes))
     end
     map!(p, [:ordination, :points, :selected], :selected_points) do o, pts, sel
         i = sel === nothing ? nothing : findfirst(==(sel), o.nodes)

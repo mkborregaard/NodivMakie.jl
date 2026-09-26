@@ -12,37 +12,37 @@
     imgs = SpeciesImages(dir; maxpixels = 64)
     @test length(imgs) == 2
     @test haskey(imgs, "a") && haskey(imgs, "b") && !haskey(imgs, "c")
-    @test maximum(size(imgs["a"])) <= 64            # thumbnail
+    @test maximum(size(imgs["a"])) <= 64            # _thumbnail
     @test imgs["a"] === imgs["a"]                    # cached
     @test_throws KeyError imgs["c"]
     @test_throws ArgumentError SpeciesImages(joinpath(dir, "nope"))
-    m = NodivMakie.markerimage(imgs["a"], :circle; fit = :crop)
+    m = NodivMakie._marker_image(imgs["a"], :circle; fit = :crop)
     @test size(m, 1) == size(m, 2)                   # cropped to a square
     @test m[1, 1].alpha == 0 && m[end ÷ 2, end ÷ 2].alpha == 1   # disc mask
     # :pad keeps the whole image: every pixel of it is in the result, inside the disc
     h, w = size(imgs["a"])
-    m = NodivMakie.markerimage(imgs["a"], :circle)
+    m = NodivMakie._marker_image(imgs["a"], :circle)
     @test size(m, 1) == size(m, 2) >= hypot(h, w)
     @test count(p -> p.alpha > 0.99, m) >= h * w - 2(h + w)
-    @test size(NodivMakie.markerimage(imgs["a"], :square), 1) >= max(h, w)
+    @test size(NodivMakie._marker_image(imgs["a"], :square), 1) >= max(h, w)
     # a bird on white: once the white is transparent, the bird itself fills the disc
     bird = [(i - 30)^2 / 400 + (j - 20)^2 / 100 < 1 ? RGBAf(0.3, 0.2, 0.1, 1) : RGBAf(1, 1, 1, 1)
             for i in 1:60, j in 1:40]                     # a 40 x 20 oval on a 60 x 40 white card
-    plain = NodivMakie.markerimage(bird, :circle)
-    filled = NodivMakie.markerimage(bird, :circle; whitebackground = true)
+    plain = NodivMakie._marker_image(bird, :circle)
+    filled = NodivMakie._marker_image(bird, :circle; whitebackground = true)
     @test size(filled, 1) < size(plain, 1) / 1.5          # the bird is drawn much larger
     @test count(p -> p.alpha > 0.99, filled) >= count(p -> p.r < 0.5, bird) - 10   # none clipped
     @test size(filled, 1) <= ceil(Int, 42 * 1.03) + 1     # just around the 40-pixel oval
     # clip: a larger image, with only a little of the subject cut off
-    clipped = NodivMakie.markerimage(bird, :circle; whitebackground = true, clip = 0.05)
+    clipped = NodivMakie._marker_image(bird, :circle; whitebackground = true, clip = 0.05)
     @test size(clipped, 1) < size(filled, 1)
     @test count(p -> p.alpha > 0.99, clipped) >= 0.9 * count(p -> p.r < 0.5, bird)
     # an off-white speck at the card's edge (as in JPEG illustrations) does not count
     speck = copy(bird); speck[1, 1] = RGBAf(0.97, 0.97, 0.97, 1)
-    @test size(NodivMakie.markerimage(speck, :circle; whitebackground = true)) == size(filled)
+    @test size(NodivMakie._marker_image(speck, :circle; whitebackground = true)) == size(filled)
     # white made transparent
     onwhite = [i < 3 ? RGBAf(1, 1, 1, 1) : RGBAf(0.2, 0.3, 0.1, 1) for i in 1:6, j in 1:6]
-    k = NodivMakie.keywhite(onwhite)
+    k = NodivMakie._key_white(onwhite)
     @test all(p -> p.alpha == 0, k[1:2, :]) && all(p -> p.alpha == 1, k[3:end, :])
     # links to missing files are skipped
     symlink(joinpath(dir, "nothing_here.png"), joinpath(dir, "ghost.png"))
@@ -50,7 +50,7 @@
 
     # tip spans: every clade is a contiguous run of tips
     l = treelayout(tree)
-    lo, hi = NodivMakie.tipspans(l)
+    lo, hi = NodivMakie._tip_spans(l)
     @test (lo[l.index["root"]], hi[l.index["root"]]) == (1, 5)
     for (i, n) in enumerate(l.names)
         @test hi[i] - lo[i] + 1 == length(nodespecies(tree, n))
@@ -62,7 +62,7 @@
         Random.seed!(seed)
         rt = rand(Ultrametric(200))
         rl = treelayout(rt)
-        rlo, rhi = NodivMakie.tipspans(rl)
+        rlo, rhi = NodivMakie._tip_spans(rl)
         ch = selectclades(rl, nslots; minclade = m, circular = true)
         w = 200 / nslots
         @test !isempty(ch)
@@ -79,7 +79,7 @@
         Random.seed!(seed)
         st = rand(Ultrametric(9))
         sl = treelayout(st)
-        slo, shi = NodivMakie.tipspans(sl)
+        slo, shi = NodivMakie._tip_spans(sl)
         w = 9 / nslots
         cand = findall(i -> shi[i] - slo[i] + 1 >= m * w - 1e-9, eachindex(slo))
         function feasible(set)
@@ -115,7 +115,7 @@
         @test byclade["abcd"].shown == "c"         # largest with an image
     end
     # an assemblage gives range sizes as occupancy
-    rsa = NodivMakie.rangesizes(asm)
+    rsa = NodivMakie._range_sizes(asm)
     @test rsa["a"] == 6 && rsa["e"] == 3
 
     # geometry: images fit with their spacing
@@ -164,11 +164,11 @@
         events(fig).mouseposition[] = Tuple(Float64.(px[Vec(1, 2)] .+ ax.scene.viewport[].origin))
     end
     moveto((x0 + x1) / 2, (y0 + y1) / 2)
-    @test NodivMakie.overimage(ip)
+    @test NodivMakie._over_image(ip)
     @test ip.inspector_hover[](di, ip, 1) == true         # runs against Makie's inspector
     @test di.plot.text[] == ip.inspector_label[](ip, (1, 1), nothing)
     moveto(x0 + 0.03 * (x1 - x0), y0 + 0.03 * (y1 - y0)) # a transparent corner
-    @test !NodivMakie.overimage(ip)
+    @test !NodivMakie._over_image(ip)
     @test ip.inspector_hover[](di, ip, 1) == false
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     # a directory path works too, with options
@@ -208,7 +208,7 @@
 
     # cladeimages!: each child clade's largest-range species with an image
     eimgs = SpeciesImages(edir)
-    ranges = NodivMakie.rangesizes(asm)
+    ranges = NodivMakie._range_sizes(asm)
     best(clade) = (sps = filter(s -> haskey(eimgs, s), nodespecies(tree, clade));
                    isempty(sps) ? nothing : first(sort(sps; by = s -> (-ranges[s], s))))
     fig, np = nodepanel(asm, tree, "root", res)
@@ -219,7 +219,7 @@
         for (k, p) in enumerate(plots)
             sp = best(getnodename(tree, getchildren(tree, node)[k]))
             @test p.visible[] == (sp !== nothing)
-            sp === nothing || @test p[3][] == NodivMakie.markerimage(eimgs[sp], :circle)
+            sp === nothing || @test p[3][] == NodivMakie._marker_image(eimgs[sp], :circle)
         end
     end
     check("root"); check("n2"); check("n1"); check("n3")
@@ -235,9 +235,9 @@
     (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data
     o = np.axes[3].scene.viewport[].origin
     events(fig).mouseposition[] = (o[1] + (x0 + x1) / 2, o[2] + (y0 + y1) / 2)
-    @test NodivMakie.overimage(plots[1])
+    @test NodivMakie._over_image(plots[1])
     events(fig).mouseposition[] = (o[1] + x0 + 1, o[2] + y0 + 1)
-    @test !NodivMakie.overimage(plots[1])
+    @test !NodivMakie._over_image(plots[1])
     @test best("n1") == "a"                          # b has no image
     vp = np.axes[3].scene.viewport[]
     (x0, x1), (y0, y1) = plots[1][1][].data, plots[1][2][].data
@@ -252,10 +252,10 @@
     pximage(ax) = only(filter(p -> p isa Image && p.space[] === :pixel, ax.scene.plots))
     fig, np = nodepanel(asm, tree, "root", res; images = edir,
                         imageoptions = (; rangesize = ranked))
-    @test pximage(np.axes[3])[3][] == NodivMakie.markerimage(eimgs["e"], :circle)
+    @test pximage(np.axes[3])[3][] == NodivMakie._marker_image(eimgs["e"], :circle)
     fig, ex = nodeexplorer(asm, tree, res; nodes = :all, node = "root", images = edir,
                            imageoptions = (; rangesize = ranked))
-    @test pximage(ex.panel.axes[3])[3][] == NodivMakie.markerimage(eimgs["e"], :circle)
+    @test pximage(ex.panel.axes[3])[3][] == NodivMakie._marker_image(eimgs["e"], :circle)
     @test "e" in [c.shown for c in ex.images.clades]
     fig, ex = nodeexplorer(asm, tree, res)
     @test ex.images === nothing

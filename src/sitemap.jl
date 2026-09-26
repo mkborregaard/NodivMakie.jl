@@ -23,23 +23,23 @@ Missing and NaN values are drawn with `nan_color`, transparent by default.
     Makie.mixin_generic_plot_attributes()...
 end
 
-sitevalues(v) = Float64[ismissing(x) || x === nothing ? NaN : Float64(x) for x in v]
+_site_values(v) = Float64[ismissing(x) || x === nothing ? NaN : Float64(x) for x in v]
 
-# richness with empty sites as NaN, so they are not drawn
-function occupiedrichness(asm)
-    r = sitevalues(richness(asm))
+# Richness with empty sites as NaN, so they are not drawn
+function _occupied(richness)
+    r = _site_values(richness)
     r[r .== 0] .= NaN
     return r
 end
 
-sitelocations(asm::EcoBase.AbstractAssemblage) = getcoords(places(asm))
+_site_locations(asm::EcoBase.AbstractAssemblage) = getcoords(places(asm))
 
 Makie.convert_arguments(::Type{<:SiteMap}, v::AbstractVector, asm::EcoBase.AbstractAssemblage) =
-    (sitevalues(v), sitelocations(asm))
+    (_site_values(v), _site_locations(asm))
 Makie.convert_arguments(::Type{<:SiteMap}, v::AbstractVector, locs::EcoBase.AbstractLocationData) =
-    (sitevalues(v), locs)
+    (_site_values(v), locs)
 Makie.convert_arguments(T::Type{<:SiteMap}, asm::EcoBase.AbstractAssemblage) =
-    (occupiedrichness(asm), sitelocations(asm))
+    (_occupied(richness(asm)), _site_locations(asm))
 Makie.convert_arguments(T::Type{<:SiteMap}, f::Function, asm::EcoBase.AbstractAssemblage) =
     Makie.convert_arguments(T, f(asm), asm)
 Makie.convert_arguments(T::Type{<:SiteMap}, stat::Symbol, asm::SpatialEcology.SEAssemblage) =

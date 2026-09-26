@@ -42,6 +42,10 @@ function SpeciesImages(dir::AbstractString; extensions = (".png", ".jpg", ".jpeg
     return SpeciesImages(String(dir), files, maxpixels, Dict{String, Matrix{RGBAf}}())
 end
 
+# Species images given as a `SpeciesImages` (or anything with `haskey`), or a directory
+_species_images(images::AbstractString) = SpeciesImages(images)
+_species_images(images) = images
+
 Base.haskey(imgs::SpeciesImages, species) = haskey(imgs.files, speciesname(species))
 Base.length(imgs::SpeciesImages) = length(imgs.files)
 Base.show(io::IO, imgs::SpeciesImages) =
@@ -51,13 +55,13 @@ function Base.getindex(imgs::SpeciesImages, species)
     key = speciesname(species)
     haskey(imgs.files, key) || throw(KeyError(species))
     return get!(imgs.cache, key) do
-        thumbnail(RGBAf.(FileIO.load(imgs.files[key])), imgs.maxpixels)
+        _thumbnail(RGBAf.(FileIO.load(imgs.files[key])), imgs.maxpixels)
     end
 end
 
 # Reduce an image to at most `maxpixels` on its longest side by averaging blocks of
 # pixels; avoids drawing (and saving) full-size photographs.
-function thumbnail(img::AbstractMatrix{RGBAf}, maxpixels)
+function _thumbnail(img::AbstractMatrix{RGBAf}, maxpixels)
     f = cld(maximum(size(img)), maxpixels)
     f <= 1 && return Matrix(img)
     h, w = fld.(size(img), f)
@@ -66,7 +70,7 @@ function thumbnail(img::AbstractMatrix{RGBAf}, maxpixels)
 end
 
 # The central square of an image
-function squarecrop(img::AbstractMatrix)
+function _square_crop(img::AbstractMatrix)
     h, w = size(img)
     n = min(h, w)
     i0, j0 = (h - n) ÷ 2, (w - n) ÷ 2
@@ -74,7 +78,7 @@ function squarecrop(img::AbstractMatrix)
 end
 
 # Pixels outside the inscribed circle made transparent, with a one-pixel soft edge
-function discmask(img::AbstractMatrix{RGBAf})
+function _disc_mask(img::AbstractMatrix{RGBAf})
     n = size(img, 1)
     c = (n + 1) / 2
     r = n / 2
@@ -87,7 +91,7 @@ function discmask(img::AbstractMatrix{RGBAf})
 end
 
 # The image centred on a transparent n x n canvas, so nothing is cut off
-function padto(img::AbstractMatrix{RGBAf}, n)
+function _pad_to(img::AbstractMatrix{RGBAf}, n)
     h, w = size(img)
     out = fill(RGBAf(0, 0, 0, 0), n, n)
     i0, j0 = (n - h) ÷ 2, (n - w) ÷ 2
@@ -96,7 +100,7 @@ function padto(img::AbstractMatrix{RGBAf}, n)
 end
 
 # Near-white pixels made transparent (with a soft edge), for illustrations on white
-function keywhite(img::AbstractMatrix{RGBAf}; threshold = 0.92)
+function _key_white(img::AbstractMatrix{RGBAf}; threshold = 0.92)
     return map(img) do p
         w = min(p.r, p.g, p.b)                      # how white: the darkest channel
         a = clamp((1 - w) / (1 - threshold), 0, 1)
@@ -114,9 +118,9 @@ end
 # circle is centred on the content's bounding box or its centre of mass, whichever needs
 # the smaller circle); e.g. 0.02 lets the outermost 2% (a tail tip, the feet) be cut off
 # for a larger image, with the circle centred on the content's centre of mass.
-function fitcontent(img::AbstractMatrix{RGBAf}, shape::Symbol; margin = 0.03, clip = 0.0)
+function _fit_content(img::AbstractMatrix{RGBAf}, shape::Symbol; margin = 0.03, clip = 0.0)
     idx = findall(p -> p.alpha >= 0.5, img)
-    isempty(idx) && return padto(img, maximum(size(img)))
+    isempty(idx) && return _pad_to(img, maximum(size(img)))
     h, w = size(img)
     if shape === :circle
         (r1, r2), (c1, c2) = extrema(i[1] for i in idx), extrema(i[2] for i in idx)
@@ -137,11 +141,11 @@ function fitcontent(img::AbstractMatrix{RGBAf}, shape::Symbol; margin = 0.03, cl
         for i in max(1, 1 - oi):min(h, n - oi), j in max(1, 1 - oj):min(w, n - oj)
             out[i + oi, j + oj] = img[i, j]
         end
-        return discmask(out)
+        return _disc_mask(out)
     end
     (r1, r2), (c1, c2) = extrema(i[1] for i in idx), extrema(i[2] for i in idx)
     sub = img[r1:r2, c1:c2]
-    return padto(sub, ceil(Int, maximum(size(sub)) * (1 + margin)))
+    return _pad_to(sub, ceil(Int, maximum(size(sub)) * (1 + margin)))
 end
 
 # An image ready to draw with `image!` over a square, turned so it is upright (`image!`
@@ -151,15 +155,15 @@ end
 # - `fit = :crop` fills the circle or square with the image's central part
 # - `whitebackground = true` makes a white background transparent first
 # - `clip`: with `:pad` on a disc, the share of the content allowed to be cut off at the
-#   disc's edge for a larger image (see `fitcontent`)
-function markerimage(img::AbstractMatrix{RGBAf}, shape::Symbol; fit = :pad,
+#   disc's edge for a larger image (see `_fit_content`)
+function _marker_image(img::AbstractMatrix{RGBAf}, shape::Symbol; fit = :pad,
                      whitebackground = false, clip = 0.0)
-    whitebackground && (img = keywhite(img))
+    whitebackground && (img = _key_white(img))
     if fit === :crop
-        sq = squarecrop(img)
-        shape === :circle && (sq = discmask(sq))
+        sq = _square_crop(img)
+        shape === :circle && (sq = _disc_mask(sq))
     else
-        sq = fitcontent(img, shape; clip)
+        sq = _fit_content(img, shape; clip)
     end
     return rotr90(sq)
 end
