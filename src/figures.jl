@@ -104,17 +104,19 @@ function node_panel_pdf(assemblage, tree, nodes, res, outfile; backend, kwargs..
             "`brew install poppler`",
         )
     end
-    tmp = mktempdir()
-    pages = String[]
     fig, panel = node_panel(assemblage, tree, first(nodes), res; kwargs...)
-    for (i, node) in enumerate(nodes)
-        panel.node[] = node
-        page = joinpath(tmp, string(lpad(i, 3, '0'), ".pdf"))
-        save(page, fig; backend)
-        push!(pages, page)
+    # the pages go in a temporary directory, removed afterwards even if a page fails
+    npages = mktempdir() do tmp
+        pages = String[]
+        for (i, node) in enumerate(nodes)
+            panel.node[] = node
+            page = joinpath(tmp, string(lpad(i, 3, '0'), ".pdf"))
+            save(page, fig; backend)
+            push!(pages, page)
+        end
+        run(`pdfunite $pages $outfile`)
+        return length(pages)
     end
-    run(`pdfunite $pages $outfile`)
-    rm(tmp; recursive=true)
-    @info "wrote node-panel PDF" outfile npages = length(pages)
+    @info "wrote node-panel PDF" outfile npages
     return outfile
 end
