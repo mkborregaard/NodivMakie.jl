@@ -33,3 +33,8 @@ complex Makie layouts.
 - Clade richness in the node panel uses Nodiv's `clade_richness` (a sites x species index,
   tested there equal to `richness(get_clade(...))`); a switch is ~15 ms on the 18k-cell
   data vs ~0.8 s.
+- Equal-scale axes (maps, ordinations) use `_EQUAL_SCALES` (sitemap.jl), not bare
+  `autolimitaspect = 1`: with automatic tick label space some axis sizes have no layout
+  fixed point and Makie 0.24 overflows the stack (e.g. a node panel with an SOS map beside
+  it). `:max_auto` tick label space settles. Makie bug; the 3-line reproduction is in the
+  comment there.

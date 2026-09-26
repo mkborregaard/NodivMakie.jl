@@ -141,7 +141,7 @@ function node_panel!(
         ax = Axis(
             gl[row, 2col - 1];
             title=lift(d -> d.titles[i], data),
-            autolimitaspect=1,
+            _EQUAL_SCALES...,
             xgridvisible=false,
             ygridvisible=false,
             axis...,
@@ -215,7 +215,7 @@ function sos_map!(
     ax = Axis(
         gl[1, 1];
         title=title isa Function ? lift(title, shown) : title,
-        autolimitaspect=1,
+        _EQUAL_SCALES...,
         xgridvisible=false,
         ygridvisible=false,
         axis...,

@@ -44,4 +44,12 @@
     np.node[] = "n2"
     @test np.axes[2].title[] == "SOS" && np.maps[2].values[] == sos["n2"]
     @test size(Makie.colorbuffer(fig)) != (0, 0)
+    # an SOS map beside the panel narrows its maps to sizes where Makie's equal-scale
+    # limits and automatic tick label space have no fixed point (a StackOverflowError)
+    for colorbar in (true, false)
+        fig = Figure()
+        np = node_panel!(fig[1, 1], asm, tree, "root", res)
+        ax, m = sos_map!(fig[1, 2], asm, "root", res; colorbar)
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
+    end
 end

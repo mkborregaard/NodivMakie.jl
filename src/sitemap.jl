@@ -90,7 +90,16 @@ function Makie.plot!(p::SiteMap)
     return p
 end
 
+# Equal scales on both axes. `autolimitaspect` sets the limits from the axis's size, the
+# size depends on the tick labels' width and the labels on the limits; for some sizes
+# this has no fixed point and Makie recurses until a StackOverflowError (a Makie bug:
+# `Axis(Figure(size = (100, 200))[1, 1]; autolimitaspect = 1)` with a heatmap). Tick
+# label space that only grows (`:max_auto`) always settles.
+const _EQUAL_SCALES = (;
+    autolimitaspect=1, xticklabelspace=:max_auto, yticklabelspace=:max_auto
+)
+
 # Like EcoBase's `aspect_ratio --> :equal, grid --> false`
 function Makie.preferred_axis_attributes(::Type{Axis}, ::SiteMap)
-    return (; autolimitaspect=1, xgridvisible=false, ygridvisible=false)
+    return (; _EQUAL_SCALES..., xgridvisible=false, ygridvisible=false)
 end

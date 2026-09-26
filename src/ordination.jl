@@ -110,7 +110,7 @@ end
 # with equal scales on both axes
 function Makie.preferred_axis_attributes(::Type{Axis}, ::OrdinationPlot)
     return (;
-        autolimitaspect=1,
+        _EQUAL_SCALES...,
         xlabel="MDS axis 1",
         ylabel="MDS axis 2",
         xgridvisible=false,

@@ -448,7 +448,7 @@ function _explorer_ordination!(
         title="SOS similarity ($(length(ord.nodes)) nodes)",
         xlabel="MDS axis 1",
         ylabel="MDS axis 2",
-        autolimitaspect=1,
+        _EQUAL_SCALES...,
         xgridvisible=false,
         ygridvisible=false,
     )
