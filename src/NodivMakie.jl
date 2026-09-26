@@ -27,8 +27,9 @@ include("explorer.jl")
 export TreeLayout, treelayout
 export treeplot, treeplot!, TreePlot
 export sitemap, sitemap!, SiteMap
-export nodepanel, nodepanel!, NodePanel, hassos, cladecolors
+export nodepanel, nodepanel!, NodePanel, hassos, cladecolors, sosmap!
 export nodeexplorer, NodeExplorer, nodeat, onnodeclick, focuscolors
+export explorertree!, ExplorerTree
 export SpeciesImages, speciesname, treeimages!, TreeImages, missingimages, cladeimages!
 export imagegeometry, imageclades, selectclades, CladeImage
 export sosordination, SOSOrdination, ordinationplot, ordinationplot!, OrdinationPlot

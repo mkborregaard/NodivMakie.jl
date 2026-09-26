@@ -162,6 +162,22 @@ The building blocks can be used on their own:
 - `hassos(tree, sos, node)` tells whether a node can be shown in a panel.
 - `focuscolors(tree, layout, node, sos_colormap, contextcolor)` gives the per-branch
   colours used for the selected node.
+- `explorertree!(gridposition, tree, node, marked)` is the tree side of the explorer on
+  its own: the marked tree, the label and the colour bar, with clicks setting `node`, an
+  `Observable` of the node shown. Anything that follows `node` makes up the other panels,
+  e.g. `sosmap!(gridposition, assemblage, node, res)`, the SOS map of the node shown.
+  `nodeexplorer` is `explorertree!` with a `nodepanel!` beside it.
+
+```julia
+fig = Figure(size = (1600, 850))
+node = Observable("Node 17672")
+tr = explorertree!(fig[1, 1], tree, node, Dict(n => res_g.rms[n] for n in divergent_g);
+                   label = "geo rms",
+                   selectable = n -> hassos(tree, res_g.sos, n) && hassos(tree, res_e.sos, n))
+sosmap!(fig[1, 2], birds_g, node, res_g; title = "Geographic SOS")
+sosmap!(fig[1, 3], birds_e, node, res_e; title = "Environmental SOS")
+DataInspector(fig)
+```
 
 ## Ordination by SOS similarity: `sosordination`
 

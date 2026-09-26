@@ -75,6 +75,108 @@ function focuscolors(tree, layout::TreeLayout, node, sos_colormap, contextcolor;
 end
 
 """
+    ExplorerTree
+
+The tree side of an explorer, from [`explorertree!`](@ref): `node`, the `Observable` with
+the node shown, `layout`, the `GridLayout` holding the label, tree and colour bar, the
+tree `axis` and `treeplot`, `status`, the text of the label above the tree, and `images`,
+the species images around the tree ([`TreeImages`](@ref)) or `nothing`.
+"""
+struct ExplorerTree
+    node::Observable{String}
+    layout::GridLayout
+    axis::Axis
+    treeplot::TreePlot
+    status::Observable{String}
+    images::Union{TreeImages, Nothing}
+end
+
+"""
+    explorertree!(gridposition, tree, node, marked; kwargs...)
+
+The tree side of an explorer, for building explorers with other panels. Draws the tree
+with markers on the nodes of `marked` (a Dict of node name => value), coloured by value,
+a label above it with the node shown and a colour bar below. `node` is an
+`Observable{String}` with the node shown: the two clades below it are drawn in the SOS
+colours (see [`focuscolors`](@ref)), and clicking a node marker or a branch sets it. Any
+panel that follows `node` then updates with the tree; see [`sosmap!`](@ref) for one.
+
+Keyword arguments:
+- `selectable = n -> true`: whether a clicked node can be shown. A node that cannot is
+  reported in the label as `"\$n: \$unselectable"` and not shown.
+- `unselectable = "no SOS (a tip, or not analysed)"`
+- `values = marked`: node name => value, shown in the label and the hover labels; pass
+  every node's value to label unmarked nodes too
+- `label = "value"`: the name of the value, in the label and on the colour bar
+- `focuscolormap = :RdYlBu`: the SOS colour map the two clades take their colours from;
+  `focusinset` and `contextcolor` as for [`nodeexplorer`](@ref)
+- `treetype`, `showtips`, `colormap`, `colorrange`, `markersize`, `strokewidth`,
+  `strokecolor`, `treekw`, `pickfn`: as for [`nodeexplorer`](@ref)
+- `images = nothing`: species images around the tree, as a [`SpeciesImages`](@ref) or a
+  directory path, with range sizes from `rangesize` (e.g. the assemblage) and the keyword
+  arguments `imageoptions = (;)` for [`treeimages!`](@ref)
+
+The hover labels (the node, its number of species and its value) show once the figure
+has a `DataInspector`. Returns an [`ExplorerTree`](@ref).
+"""
+function explorertree!(gp, tree, node::Observable{String}, marked::AbstractDict;
+                       selectable = n -> true,
+                       unselectable = "no SOS (a tip, or not analysed)",
+                       values = marked, label = "value", treetype = :fan,
+                       showtips = false, colormap = :YlOrRd, colorrange = automatic,
+                       markersize = 14, strokewidth = 1, strokecolor = :gray20,
+                       contextcolor = :gray75, focuscolormap = :RdYlBu, focusinset = 0.15,
+                       images = nothing, imageoptions = (;), rangesize = nothing,
+                       treekw = (;), pickfn = pick)
+    gl = GridLayout(gp)
+    status = Observable("")
+    Label(gl[1, 1], status; tellwidth = false, halign = :left)
+    ax = Axis(gl[2, 1]; autolimitaspect = treetype === :fan ? 1 : nothing)
+    hidedecorations!(ax)
+    hidespines!(ax)
+
+    # the node shown: its two clades in the SOS colours, the rest of the tree greyed
+    layout = treelayout(tree)
+    focus(n) = focuscolors(tree, layout, n, focuscolormap, contextcolor; inset = focusinset)
+    # markers only on the marked nodes: a NaN colour hides a marker's fill, not its outline
+    tp = treeplot!(ax, tree; treetype, showtips, nodecolor = marked,
+                   shownodes = collect(keys(marked)), markersize,
+                   strokewidth, strokecolor, colormap, colorrange,
+                   merge(treekw, (; branchcolor = focus(node[])))...)
+    on(n -> (tp.branchcolor = focus(n)), node)
+    ti = nothing
+    if images !== nothing
+        rangesize === nothing &&
+            throw(ArgumentError("Species images around the tree need `rangesize`, e.g. the assemblage"))
+        images isa AbstractString && (images = SpeciesImages(images))
+        ti = treeimages!(ax, tp, images, rangesize; imageoptions...)
+    end
+    Colorbar(gl[3, 1], tp; vertical = false, flipaxis = false, label,
+             tellheight = true, width = Relative(0.6))
+
+    describe(n) = haskey(values, n) && values[n] isa Real ? "$n   $label = $(round(values[n]; sigdigits = 3))" : n
+    status[] = describe(node[])
+    on(n -> (status[] = describe(n)), node)
+    _onnodeclick(ax, tp, pickfn) do n
+        if selectable(n)
+            node[] = n
+        else
+            status[] = "$n: $unselectable"
+        end
+    end
+    # hover labels: the node, its size, and its value
+    function hover(n)
+        k = tp.tree_layout[].index[n]
+        lab = tp.tree_layout[].isleaf[k] ? n : "$n  ($(tp.clade_sizes[][k]) species)"
+        haskey(values, n) && values[n] isa Real && isfinite(values[n]) &&
+            (lab *= "\n$label = $(round(values[n]; sigdigits = 3))")
+        return lab
+    end
+    tp.hoverlabel = hover
+    return ExplorerTree(node, gl, ax, tp, status, ti)
+end
+
+"""
     NodeExplorer
 
 The parts of a [`nodeexplorer`](@ref): `figure`, the tree `axis` and `treeplot`, the
@@ -161,6 +263,7 @@ Keyword arguments:
 
 Returns `(figure, explorer)`; see [`NodeExplorer`](@ref). Clicking needs an interactive
 backend (`using GLMakie`); with CairoMakie you get the figure for the initial node.
+The tree side is [`explorertree!`](@ref), which builds explorers with other panels.
 """
 function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
                       nodes = automatic, node = automatic, treetype = :fan,
@@ -183,41 +286,26 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
     label = metric isa Symbol ? string(metric) : "value"
 
     fig = Figure(; size = (1600, 850), figure...)
-    treegrid = fig[1, 1] = GridLayout()
-    status = Observable("")
-    Label(treegrid[1, 1], status; tellwidth = false, halign = :left)
-    ax = Axis(treegrid[2, 1]; autolimitaspect = treetype === :fan ? 1 : nothing)
-    hidedecorations!(ax)
-    hidespines!(ax)
     showordination = ordination && length(marked) >= 3
     np = nodepanel!(fig[1, 2], assemblage, tree, node, res;
                     merge((; colorinset = focusinset, clademap = !showordination), panel)...)
+    rangesize = get(imageoptions, :rangesize, assemblage)
+    opts = Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})
+    images isa AbstractString && (images = SpeciesImages(images))
+    et = explorertree!(fig[1, 1], tree, np.node, marked; values = vals, label,
+                       selectable = n -> hassos(tree, sos, n), treetype, showtips,
+                       colormap, colorrange, markersize, strokewidth, strokecolor,
+                       contextcolor, focuscolormap = np.maps[2].colormap[], focusinset,
+                       images, imageoptions = opts, rangesize, treekw, pickfn)
     colsize!(fig.layout, 1, Relative(0.45))
-
-    # the node shown: its two clades in the SOS colours, the rest of the tree greyed
-    layout = treelayout(tree)
-    sos_colormap = np.maps[2].colormap[]
-    focus(n) = focuscolors(tree, layout, n, sos_colormap, contextcolor; inset = focusinset)
-    # markers only on the marked nodes: a NaN colour hides a marker's fill, not its outline
-    tp = treeplot!(ax, tree; treetype, showtips, nodecolor = marked,
-                   shownodes = collect(keys(marked)), markersize,
-                   strokewidth, strokecolor, colormap, colorrange,
-                   merge(treekw, (; branchcolor = focus(node)))...)
-    on(n -> (tp.branchcolor = focus(n)), np.node)
-    ti = nothing
+    tp = et.treeplot
     if images !== nothing
-        rangesize = get(imageoptions, :rangesize, assemblage)
-        opts = Base.structdiff(imageoptions, NamedTuple{(:rangesize,)})
-        images isa AbstractString && (images = SpeciesImages(images))
-        ti = treeimages!(ax, tp, images, rangesize; opts...)
         shared = NamedTuple(k => v for (k, v) in pairs(opts) if k in (:shape, :fit, :whitebackground, :clip))
-        cladeimages!(np, tree, images, rangesize; pixelsize = ti.pixelsize, shared...)
+        cladeimages!(np, tree, images, rangesize; pixelsize = et.images.pixelsize, shared...)
     end
-    Colorbar(treegrid[3, 1], tp; vertical = false, flipaxis = false, label,
-             tellheight = true, width = Relative(0.6))
 
-    # the marked nodes by SOS similarity, coloured like the tree's markers; a click on a
-    # point selects its node, and the node shown has a ring
+    # the marked nodes by SOS similarity, coloured like the tree's markers, with the tree's
+    # hover labels; a click on a point selects its node, and the node shown has a ring
     op, oax = nothing, nothing
     if showordination
         ord = sosordination(res, sort!(collect(keys(marked))); ordinationkw...)
@@ -226,31 +314,10 @@ function nodeexplorer(assemblage, tree, res; metric = defaultmetric(res),
                    xgridvisible = false, ygridvisible = false)
         op = ordinationplot!(oax, ord; nodecolor = marked, colormap,
                              colorrange = tp.joint_colorrange[], markersize, strokewidth,
-                             strokecolor, selected = node)
+                             strokecolor, selected = node, hoverlabel = tp.hoverlabel[])
         on(n -> (op.selected = n), np.node)
         _onnodeclick(n -> (np.node[] = n), oax, op, pickfn)
     end
-
-    describe(n) = haskey(vals, n) && vals[n] isa Real ? "$n   $label = $(round(vals[n]; sigdigits = 3))" : n
-    status[] = describe(node)
-    on(n -> (status[] = describe(n)), np.node)
-    _onnodeclick(ax, tp, pickfn) do n
-        if hassos(tree, sos, n)
-            np.node[] = n
-        else
-            status[] = "$n: no SOS (a tip, or not analysed)"
-        end
-    end
-    # hover labels on the tree and the ordination: the node, its size, and its metric value
-    function hover(n)
-        k = tp.tree_layout[].index[n]
-        lab = tp.tree_layout[].isleaf[k] ? n : "$n  ($(tp.clade_sizes[][k]) species)"
-        haskey(vals, n) && vals[n] isa Real && isfinite(vals[n]) &&
-            (lab *= "\n$label = $(round(vals[n]; sigdigits = 3))")
-        return lab
-    end
-    tp.hoverlabel = hover
-    op === nothing || (op.hoverlabel = hover)
     di = inspector ? DataInspector(fig) : nothing
-    return fig, NodeExplorer(fig, ax, tp, np, status, ti, di, op, oax)
+    return fig, NodeExplorer(fig, et.axis, tp, np, et.status, et.images, di, op, oax)
 end

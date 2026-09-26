@@ -173,3 +173,34 @@ function nodepanel(assemblage, tree, node, res; figure = (;), kwargs...)
     fig = Figure(; size = (900, 800), figure...)
     return fig, nodepanel!(fig[1, 1], assemblage, tree, node, res; kwargs...)
 end
+
+"""
+    sosmap!(gridposition, assemblage, node, res; kwargs...) -> (axis, map)
+
+The SOS of `node` (a node name or an `Observable` of one) as a map with a colour bar,
+from the cached `res` (a `NodeAnalysis`/`NodeMetrics` or a Dict of node name => SOS
+vector). The map follows `node`; a node with no SOS in `res` leaves it as it was. With
+[`explorertree!`](@ref) this builds explorers with other panels, e.g. the SOS of the
+same node in two spaces side by side.
+
+Keyword arguments:
+- `title = "SOS"`: the axis title, or a function of the node name giving it
+- `colormap = :RdYlBu`, `colorrange = (-8, 8)`: as the SOS map of [`nodepanel!`](@ref)
+- `colorbar = true`: a colour bar beside the map
+- `axis = (;)`: attributes for the axis
+"""
+function sosmap!(gp, assemblage, node, res; title = "SOS", colormap = :RdYlBu,
+                 colorrange = (-8, 8), colorbar = true, axis = (;))
+    sos = sosvalues(res)
+    node = node isa Observable ? node : Observable(String(node))
+    haskey(sos, node[]) || throw(ArgumentError("Node $(node[]) has no SOS in the result"))
+    shown = Observable(node[])
+    on(n -> haskey(sos, n) && (shown[] = n), node)
+    gl = GridLayout(gp)
+    ax = Axis(gl[1, 1]; title = title isa Function ? lift(title, shown) : title,
+              autolimitaspect = 1, xgridvisible = false, ygridvisible = false, axis...)
+    m = sitemap!(ax, lift(n -> sitevalues(sos[n]), shown), sitelocations(assemblage);
+                 colormap, colorrange)
+    colorbar && Colorbar(gl[1, 2], m; width = 10)
+    return ax, m
+end

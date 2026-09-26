@@ -402,6 +402,43 @@ markers(p) = child(p, Scatter)[2:end]   # the first scatter is the invisible pad
         @test count(isfinite, markers(ex.treeplot)[1].color[]) == 2
     end
 
+    @testset "explorer building blocks" begin
+        # an explorer with other panels: the tree and two SOS maps following one node
+        target = Ref{Any}((nothing, 0))
+        fig = Figure()
+        node = Observable("root")
+        other = Dict("root" => sos["n2"], "n1" => sos["n1"])     # a second "space"
+        et = explorertree!(fig[1, 1], tree, node, Dict("n1" => 0.4, "n2" => 0.9);
+                           selectable = n -> haskey(other, n), unselectable = "not in both",
+                           label = "geo", treetype = :dendrogram,
+                           pickfn = (sc, xy, r) -> target[])
+        ax1, m1 = sosmap!(fig[1, 2], asm, node, res; title = n -> "SOS $n")
+        ax2, m2 = sosmap!(fig[1, 3], asm, node, other; colorbar = false)
+        @test et isa ExplorerTree && et.node === node
+        @test et.status[] == "root"
+        @test ax1.title[] == "SOS root" && ax2.title[] == "SOS"
+        @test m1.values[] == sos["root"] && m2.values[] == sos["n2"]
+        Makie.colorbuffer(fig)
+        tp, l, e = et.treeplot, et.treeplot.tree_layout[], events(fig)
+        vp = et.axis.scene.viewport[]
+        e.mouseposition[] = Tuple(Float64.(vp.origin .+ vp.widths ./ 2))
+        click(n) = (target[] = (branchlines(tp), findfirst(==(l.index[n]), tp.branch_owner[]));
+                    e.mousebutton[] = Makie.MouseButtonEvent(Mouse.left, Mouse.press);
+                    e.mousebutton[] = Makie.MouseButtonEvent(Mouse.left, Mouse.release))
+        click("n1")
+        @test node[] == "n1" && et.status[] == "n1   geo = 0.4"
+        @test ax1.title[] == "SOS n1" && m1.values[] == m2.values[] == sos["n1"]
+        click("n2")                                  # not selectable: reported, not shown
+        @test node[] == "n1" && et.status[] == "n2: not in both"
+        node[] = "n2"                                # no SOS in `other`: that map stays
+        @test m1.values[] == sos["n2"] && m2.values[] == sos["n1"]
+        @test tp.hoverlabel[]("n2") == "n2  (3 species)\ngeo = 0.9"
+        @test size(Makie.colorbuffer(fig)) != (0, 0)
+        @test_throws ArgumentError sosmap!(fig[2, 1], asm, "n2", other)
+        @test_throws ArgumentError explorertree!(fig[2, 2], tree, node, Dict("n1" => 1.0);
+                                                 images = SpeciesImages(mktempdir()))
+    end
+
     @testset "species images" begin
         FileIO = NodivMakie.FileIO
         # synthetic images (none are shipped): a wide PNG, a tall JPEG, and a non-image
