@@ -14,9 +14,6 @@ Phylo = "aea672f4-3940-5932-aa44-993d1c3ff149"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SpatialEcology = "348f2d5d-71a3-5ad4-b565-8af070f99681"
 
-[sources]
-Nodiv = {path = "../Nodiv"}
-
 [compat]
 ColorTypes = "0.11, 0.12"
 EcoBase = "0.2.1"

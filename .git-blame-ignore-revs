@@ -1,0 +1,5 @@
+# Formatting-only commits, skipped by `git blame` (GitHub does this automatically;
+# locally, `git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+
+# Format with JuliaFormatter's BlueStyle
+c31cccb3561db42cc3c99dca8a8e9f9f85d73465

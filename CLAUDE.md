@@ -1,6 +1,8 @@
 # CLAUDE.md — NodivMakie
 
-Makie plotting companion to Nodiv (public repo; images are never committed) (`../Nodiv`, dev'd via `[sources]` path).
+Makie plotting companion to Nodiv (public repo; images are never committed). Nodiv comes
+from the General registry (source in `../Nodiv`); to work on both at once, `Pkg.develop`
+it into the (ignored) Manifest rather than adding a `[sources]` path, which CI cannot use.
 Nodiv itself keeps its RecipesBase/Plots recipes; this package reimplements them in Makie
 with the goal of interactive figures (clickable tree nodes linked to SOS maps) and
 complex Makie layouts.
