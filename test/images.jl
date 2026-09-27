@@ -69,24 +69,35 @@
     end
 
     # the selection rule, on random trees: disjoint clades at least minclade slots
-    # wide, whose centres (the image positions) are at least a slot apart
-    for seed in 1:5, nslots in (3, 10, 40), m in (1.0, 0.5)
+    # wide, with images over their tips and at least a slot apart
+    for seed in 1:5, nslots in (3, 10, 40), m in (1.0, 0.5), circular in (true, false)
         Random.seed!(seed)
         rt = rand(Ultrametric(200))
         rl = tree_layout(rt)
         rlo, rhi = NodivMakie._tip_spans(rl)
-        ch = select_clades(rl, nslots; minclade=m, circular=true)
+        ch = select_clades(rl, nslots; minclade=m, circular)
+        pos = image_positions(rl, nslots, ch; circular)
         w = 200 / nslots
         @test !isempty(ch)
         @test all(i -> rhi[i] - rlo[i] + 1 >= m * w - 1e-9, ch)
         @test issorted(rlo[ch])
         @test all(k -> rhi[ch[k]] < rlo[ch[k + 1]], 1:(length(ch) - 1))       # disjoint
-        ctr = [(rlo[i] + rhi[i]) / 2 for i in ch]
-        @test all(>=(w - 1e-9), diff(ctr))                                   # no overlap
-        length(ch) > 1 && @test 201 - (ctr[end] - ctr[1]) >= w - 1e-9       # ring closes
+        @test all(k -> rlo[ch[k]] - 1e-9 <= pos[k] <= rhi[ch[k]] + 1e-9, eachindex(ch))
+        @test all(>=(w - 1e-9), diff(pos))                                   # no overlap
+        circular && @test pos[1] >= w / 2 - 1e-9 && pos[end] <= 201 - w / 2 + 1e-9
         m == 1 && @test length(ch) <= nslots
+        # each image at its clade's centre where the others leave room
+        ctr = [(rlo[i] + rhi[i]) / 2 for i in ch]
+        free(k) =
+            (k == 1 || ctr[k] - pos[k - 1] >= w + 1e-6) &&
+            (k == length(ch) || pos[k + 1] - ctr[k] >= w + 1e-6) &&
+            (!circular || w / 2 <= ctr[k] <= 201 - w / 2)
+        @test all(k -> !free(k) || pos[k] ≈ ctr[k], eachindex(ch))
     end
-    # the most images possible (then the most species): brute force on small trees
+    # the nearest placement within bounds: here clamping after pooling would leave the
+    # middle value at 1.5
+    @test NodivMakie._isotonic([1.0, 3, 0], [-Inf, -Inf, 2.5], fill(Inf, 3)) ≈ [1, 2.5, 2.5]
+    # the most images possible: brute force on small trees
     for seed in 1:4, nslots in (2, 3, 5), m in (1.0, 0.5)
         Random.seed!(seed)
         st = rand(Ultrametric(9))
@@ -96,24 +107,21 @@
         cand = findall(i -> shi[i] - slo[i] + 1 >= m * w - 1e-9, eachindex(slo))
         function feasible(set)
             set = sort(set; by=i -> slo[i])
-            all(
-                k ->
-                    shi[set[k]] < slo[set[k + 1]] &&
-                    (slo[set[k + 1]] + shi[set[k + 1]] - slo[set[k]] - shi[set[k]]) / 2 >=
-                    w - 1e-9,
-                1:(length(set) - 1),
-            )
+            p = -Inf                              # images as early as they can be
+            for (k, i) in enumerate(set)
+                k > 1 && shi[set[k - 1]] >= slo[i] && return false
+                p = max(slo[i], p + w)
+                p <= shi[i] + 1e-9 || return false
+            end
+            return true
         end
         best = maximum(0:(2 ^ length(cand) - 1)) do mask
             set = cand[[isodd(mask >> (k - 1)) for k in 1:length(cand)]]
-            if feasible(set)
-                (length(set), sum(i -> shi[i] - slo[i] + 1, set; init=0))
-            else
-                (0, 0)
-            end
+            feasible(set) ? length(set) : 0
         end
         ch = select_clades(sl, nslots; minclade=m)
-        @test (length(ch), sum(i -> shi[i] - slo[i] + 1, ch; init=0)) == best
+        @test length(ch) == best
+        @test feasible(ch)
     end
     # a lone species sister to a big clade does not pull the big clade into one image
     lone = parsenewick(
@@ -121,10 +129,10 @@
         "((e:1,f:1)ef:1,(g:1,h:1)gh:1)efgh:1)big:1)root;",
     )
     ll = tree_layout(lone)
-    for m in (1.0, 0.5)
+    for (m, expected) in ((1.0, ["abcd", "efgh"]), (0.5, ["ab", "cd", "ef", "gh"]))
         chosen = ll.names[select_clades(ll, 4; minclade=m)]
         @test !("root" in chosen) && !("big" in chosen)
-        @test issubset(["abcd", "efgh"], chosen)
+        @test issubset(expected, chosen)
     end
     @test select_clades(ll, 1; minclade=1) == [ll.index["root"]]
 

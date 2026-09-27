@@ -41,7 +41,7 @@ export node_panel, node_panel!, NodePanel, has_sos, clade_colors, sos_map!
 export node_explorer, NodeExplorer, node_at, on_node_click, focus_colors, link_explorers!
 export explorer_tree!, ExplorerTree
 export SpeciesImages, species_name, tree_images!, TreeImages, missing_images, clade_images!
-export image_geometry, image_clades, select_clades, CladeImage
+export image_geometry, image_clades, select_clades, image_positions, CladeImage
 export ordinationplot, ordinationplot!, OrdinationPlot
 export eigenvalueplot, eigenvalueplot!, EigenvaluePlot
 export map_figure, metric_tree, node_panel_pdf

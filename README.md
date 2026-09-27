@@ -260,21 +260,25 @@ Which species are shown:
    tree's radius for a fan, default 0.15; or pass `nimages`). For a fan, that is the
    number of discs that fit around a ring just outside the tips with a little space
    between them. That many equal slots divide the tips.
-2. **Which clades.** Each image stands for a monophyletic clade and sits at its centre.
+2. **Which clades.** Each image stands for a monophyletic clade and sits over its tips.
    The clades are disjoint, so no species is in two images. Each is at least `minclade`
-   of a slot wide (default 0.5), and their centres are at least a slot apart, so images
-   never overlap. Among the choices meeting these rules, the one with the most images is
-   taken, and then the one covering the most species. So a clade too small for its own
-   image joins its sister in their parent's image where that costs no image, and a clade
-   wider than a slot leaves gaps beside its image. The choice is exact (see
-   `select_clades`).
+   of a slot wide (default 0.5), and the images are at least a slot apart, so they never
+   overlap. Among the choices meeting these rules, the one with the most images is taken
+   (exactly, see `select_clades`), and then, where that costs no image, the one covering
+   more species. So a clade too small for its own image joins its sister in their
+   parent's image where that costs no image. Each image is at its clade's centre where
+   its neighbours leave room, and otherwise moves towards the free space, still over its
+   clade (`image_positions`), so a clade wider than a slot need not leave gaps beside its
+   image. Gaps remain where a stretch of the tree has no clade at least `minclade` of a
+   slot wide that fits; a lower `minclade` (e.g. 0.3) fills them with images for smaller
+   clades.
 3. **Which species.** Each clade is shown by its species with the largest range size
    (occupied cells in the assemblage, or a Dict you pass) that has an image. Where none of
    a clade's species has an image, the position is left empty.
 
-On a bird tree of 9852 species, the defaults give 26 images around the fan
-and 12 beside a dendrogram, covering 90–95% of species. `minclade = 1` makes every clade
-fill at least its own slot; that gives fewer images (19 and 8).
+On a bird tree of 10316 species, the defaults give 36 images around the fan (of 42 that
+fit) and 15 beside a dendrogram (of 18), covering 70–85% of species. `minclade = 1` makes
+every clade fill at least its own slot; that gives fewer images (17 and 9).
 
 Images are shown whole, shrunk to fit inside a disc (`shape = :square` for squares), reduced
 to thumbnails, and outlined. `fit = :crop` fills the disc with the image's central part

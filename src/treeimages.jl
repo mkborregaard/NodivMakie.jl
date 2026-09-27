@@ -89,9 +89,10 @@ column right of a dendrogram (in a narrow axis added beside `ax`, linked in y).
 
 How many images fit follows from their size (see [`image_geometry`](@ref)); that many
 equal slots divide the tips. Then as many disjoint clades as possible are chosen, each at
-least `minclade` of a slot wide and with centres at least a slot apart, so images never
-overlap (see [`select_clades`](@ref)). Each is shown by an image at its centre: its
-largest-range species that has an image. Positions where no species has an image are
+least `minclade` of a slot wide and with images at least a slot apart, so images never
+overlap (see [`select_clades`](@ref)). Each is shown by an image over its tips, as near
+its centre as its neighbours allow (see [`image_positions`](@ref)): its largest-range
+species that has an image. Positions where no species has an image are
 left empty; use [`missing_images`](@ref) to list the species to find images for.
 
 Keyword arguments:
@@ -148,7 +149,6 @@ function tree_images!(
     nmissing > 0 &&
         @info "$nmissing of $(length(clades)) image positions have no image for any " *
             "species of their clade; `missing_images` lists the species to find"
-    centre(c) = (first(c.tips) + last(c.tips)) / 2
     hovertext(c) = "$(_display_name(c.shown))\nfor $(c.clade) ($(length(c.tips)) species)"
     shown = filter(c -> c.shown !== nothing, clades)
     s = geo.size
@@ -156,7 +156,7 @@ function tree_images!(
 
     if tt === :fan
         T = _ntips(l)
-        pts = [_polar(geo.radius, _fan_angle(centre(c), T)) for c in shown]
+        pts = [_polar(geo.radius, _fan_angle(c.position, T)) for c in shown]
         for (c, p) in zip(shown, pts)
             img = _marker_image(images[c.shown], shape; fit, whitebackground, clip)
             ip = image!(
@@ -217,13 +217,13 @@ function tree_images!(
         pixelsize = lift(pxy -> s * pxy, pixels_per_tip)
         for c in shown
             img = _marker_image(images[c.shown], shape; fit, whitebackground, clip)
-            y = centre(c)
+            y = c.position
             ip = image!(imgax, 0.0 .. 1.0, (y - s / 2) .. (y + s / 2), img)
             push!(plots, _image_hover!(ip, imgax.scene, hovertext(c)))
         end
         outline = Point2d[]
         for c in shown
-            _outline_points!(outline, 0.5, centre(c), s, 1 / s, 1, shape)
+            _outline_points!(outline, 0.5, c.position, s, 1 / s, 1, shape)
         end
         if showclades
             H = maximum(l.height)
