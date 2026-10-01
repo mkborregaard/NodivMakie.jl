@@ -12,13 +12,17 @@ Map one value per site over the sites of an assemblage. Gridded sites are drawn 
 heatmap, point sites as a scatter. `sitemap(assemblage)` maps species richness with
 empty sites left out (as EcoBase's recipe does), `sitemap(f, assemblage)` maps
 `f(assemblage)`, and `sitemap(stat, assemblage)` maps the site statistic column `stat`.
-Missing and NaN values are drawn with `nan_color`, transparent by default.
+Missing and NaN values are drawn with `nan_color`, transparent by default. Under the
+values every site is drawn in `empty_color`, so with `nan_color` transparent the sites
+with no value show in `empty_color` and stand out from the cells that are not sites.
 """
 @recipe SiteMap (values, locations) begin
     "Marker size for point sites."
     markersize = 6
     "Marker shape for point sites."
     marker = :rect
+    "Colour of every site, drawn under the values: shows the sites with no value."
+    empty_color = :transparent
     Makie.mixin_colormap_attributes()...
     Makie.mixin_generic_plot_attributes()...
 end
@@ -77,12 +81,27 @@ function Makie.plot!(p::SiteMap)
                 permutedims(EcoBase.convert_to_image(v, grd)),
             )
         end
+        # The sites as colours rather than values, so the colour bar ignores them
+        map!(p, [:values, :locations, :empty_color], :sites) do v, grd, c
+            issite = permutedims(EcoBase.convert_to_image(ones(length(v)), grd))
+            site, other = to_color(c), RGBAf(0, 0, 0, 0)
+            return [isnan(x) ? other : site for x in issite]
+        end
+        heatmap!(p, p.xs, p.ys, p.sites; inspectable=false)
         heatmap!(p, p.xs, p.ys, p.image; cmap...)
     else
         map!(p, :locations, :points) do pnt
             cd = coordinates(pnt, EcoBase.XThenY())
             return Point2d.(cd[:, 1], cd[:, 2])
         end
+        scatter!(
+            p,
+            p.points;
+            color=p.empty_color,
+            markersize=p.markersize,
+            marker=p.marker,
+            inspectable=false,
+        )
         scatter!(
             p, p.points; color=p.values, markersize=p.markersize, marker=p.marker, cmap...
         )

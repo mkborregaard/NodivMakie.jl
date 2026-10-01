@@ -80,6 +80,8 @@ vector, e.g. a cached result; nothing is recomputed.
 Keyword arguments:
 - `richness_colormap = Reverse(:Spectral)`, `sos_colormap = :RdYlBu`,
   `sos_colorrange = (-8, 8)`: the colours of `plot_node`
+- `sos_empty_color = :lightgray`: the sites with no SOS on the SOS map (see
+  [`sitemap`](@ref)'s `empty_color`)
 - `colorbars = true`: a colour bar beside each map
 - `clademap = true`: draw the map of the node's own clade (top left). With `false` that
   cell of `panel.layout` is left free, as the [`node_explorer`](@ref) does for its
@@ -104,6 +106,7 @@ function node_panel!(
     richness_colormap=Reverse(:Spectral),
     sos_colormap=:RdYlBu,
     sos_colorrange=(-8, 8),
+    sos_empty_color=:lightgray,
     colorbars=true,
     axis=(;),
     images=nothing,
@@ -147,7 +150,11 @@ function node_panel!(
             axis...,
         )
         if i == 2
-            cm = (colormap=sos_colormap, colorrange=sos_colorrange)
+            cm = (
+                colormap=sos_colormap,
+                colorrange=sos_colorrange,
+                empty_color=sos_empty_color,
+            )
         else
             cm = (colormap=richness_colormap,)
         end
@@ -191,7 +198,8 @@ same node in two spaces side by side.
 
 Keyword arguments:
 - `title = "SOS"`: the axis title, or a function of the node name giving it
-- `colormap = :RdYlBu`, `colorrange = (-8, 8)`: as the SOS map of [`node_panel!`](@ref)
+- `colormap = :RdYlBu`, `colorrange = (-8, 8)`, `empty_color = :lightgray`: as the SOS
+  map of [`node_panel!`](@ref)
 - `colorbar = true`: a colour bar beside the map
 - `axis = (;)`: attributes for the axis
 """
@@ -203,6 +211,7 @@ function sos_map!(
     title="SOS",
     colormap=:RdYlBu,
     colorrange=(-8, 8),
+    empty_color=:lightgray,
     colorbar=true,
     axis=(;),
 )
@@ -226,6 +235,7 @@ function sos_map!(
         _site_locations(assemblage);
         colormap,
         colorrange,
+        empty_color,
     )
     colorbar && Colorbar(gl[1, 2], m; width=10)
     return ax, m

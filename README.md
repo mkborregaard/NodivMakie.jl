@@ -89,14 +89,16 @@ sitemap(occupancy, assemblage)            # f(assemblage)
 map_figure(assemblage; title="Richness", label="species")   # with a colour bar
 ```
 
-Missing and NaN values are transparent (`nan_color`). The values are the plot's first
-argument, so `p[1] = newvalues` redraws the map in place.
+Missing and NaN values are transparent (`nan_color`). `empty_color` draws every site in
+a colour under the values, so the sites with no value stand out from the cells that are
+not sites; the SOS maps of the node panel and `sos_map!` use light grey. The values are
+the plot's first argument, so `p[1] = newvalues` redraws the map in place.
 
 ## The node panel: `node_panel`
 
 The Makie version of Nodiv's `plot_node`. It is a 2×2 grid:
 - top left: the richness of the node's clade;
-- top right: the node's SOS (`RdYlBu`, −8 to 8);
+- top right: the node's SOS (`RdYlBu`, −8 to 8; sites with no SOS light grey);
 - bottom row: the richness of the two descendant clades.
 
 The four map axes are linked, so zooming one zooms them all. The panel reads the

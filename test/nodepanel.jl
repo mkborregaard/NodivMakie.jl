@@ -52,4 +52,12 @@
         ax, m = sos_map!(fig[1, 2], asm, "root", res; colorbar)
         @test size(Makie.colorbuffer(fig)) != (0, 0)
     end
+    # the sites with no SOS are light grey on the SOS maps, not on the richness maps
+    fig = Figure()
+    np = node_panel!(fig[1, 1], asm, tree, "root", res)
+    ax, m = sos_map!(fig[1, 2], asm, "root", res)
+    @test np.maps[2].empty_color[] == :lightgray && m.empty_color[] == :lightgray
+    @test np.maps[3].empty_color[] == :transparent
+    fig, np = node_panel(asm, tree, "root", res; sos_empty_color=:red)
+    @test np.maps[2].empty_color[] == :red
 end
