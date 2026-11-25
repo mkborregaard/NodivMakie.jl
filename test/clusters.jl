@@ -8,14 +8,14 @@
 
     fig = sos_cluster_heatmap(c; title="clusters")
     @test fig isa Figure
-    hm = only(filter(x -> x isa Axis && x.xticks[] isa Tuple, fig.content))
+    hm = only(filter(x -> x isa Axis && x.yticks[] isa Tuple, fig.content))
     @test hm.yticks[][2] == nodes[c.hclust.order]
     heat = only(filter(x -> x isa Heatmap, hm.scene.plots))
-    @test heat[3][] ≈ (1 .- D)[c.hclust.order, c.hclust.order]
+    @test heat[3][] ≈ sos_similarity.(D)[c.hclust.order, c.hclust.order]
     # each cluster of more than one node outlined, twice (a black and a coloured line)
     @test count(x -> x isa Poly, hm.scene.plots) == 4
     # the dendrogram: leaves at x = 0 beside heatmap rows 1:n, merges at minus their heights
-    dend = only(filter(x -> x isa Axis && x.xlabel[] == "1 - |r|", fig.content))
+    dend = only(filter(x -> x isa Axis && x.xlabel[] == "|r|", fig.content))
     function linepoints(p)
         p isa Union{Lines,LineSegments} && return Point2d.(p[1][])
         return reduce(vcat, map(linepoints, p.plots); init=Point2d[])
@@ -34,6 +34,6 @@
     @test any(x -> x isa Legend, fig.content)
     @test size(Makie.colorbuffer(fig)) != (0, 0)
     # no clusters of more than one node: no markers, no legend
-    fig, ax, p = cluster_tree(tree, sos_clusters(D, nodes; simcut=0.95))
+    fig, ax, p = cluster_tree(tree, sos_clusters(D, nodes; simcut=0.999))
     @test !any(x -> x isa Legend, fig.content)
 end

@@ -207,7 +207,7 @@ metric_tree(tree, Dict("Node 1" => 2.3, "Node 7" => 1.8))   # any per-node value
 ## Ordination by SOS similarity: `ordinationplot`
 
 Nodiv's `sos_ordination` is a classical MDS of nodes by the similarity of their SOS maps,
-on `sos_distances` (1 − |r| over the cells where both nodes have an SOS). These plot it.
+on `sos_distances` (√(1 − r²) over the cells where both nodes have an SOS). These plot it.
 
 ```julia
 o = sos_ordination(res, divergent_nodes(res); minoverlap=8)
