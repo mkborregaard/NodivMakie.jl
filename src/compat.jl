@@ -52,3 +52,63 @@ Makie.extract_colormap(p::OrdinationPlot) = Makie.extract_colormap(p.plots[1])
 function Makie.get_plots(p::TreePlot)
     return filter(c -> c isa Scatter && haskey(c, :label) && !isnothing(c.label[]), p.plots)
 end
+
+# Hover labels can be rich text (from `rich`, e.g. with coloured parts), kept as it is;
+# anything else becomes a string. `RichText`, the type `rich` returns, is not public.
+_label_text(x::Makie.RichText) = x
+_label_text(x) = string(x)
+
+# The `inspector_label`, `inspector_hover` and `inspector_clear` of a plot whose hover text,
+# `label(plot, index, position)`, may be rich text. The `DataInspector`'s tooltip takes only
+# strings (Makie 0.24 fixes its text type at its first, empty, label), so a string label
+# goes the usual way (`show_data`), and rich text goes to a second tooltip of the
+# inspector's, at the cursor, hidden again when the cursor moves on. Not public:
+# `show_data`, `clear_temporary_plots!` (which makes the plot the inspector's selection, so
+# that the inspector does not clear it again just after) and the inspector's fields, and
+# the placement rules are copied from `update_tooltip_alignment!`.
+function _hover_attributes(label)
+    plain(plt, i, pos) = (t=label(plt, i, pos); t isa Makie.RichText ? String(t) : t)
+    function hover(inspector, plt, i)
+        t = label(plt, i, nothing)
+        if !(t isa Makie.RichText)
+            _hide_rich_tooltip!(inspector)
+            return Makie.show_data(inspector, plt, i)
+        end
+        inspector.selection === plt || Makie.clear_temporary_plots!(inspector, plt)
+        _show_rich_tooltip!(inspector, t)
+        return true
+    end
+    clear(inspector, _) = _hide_rich_tooltip!(inspector)
+    return (; inspector_label=plain, inspector_hover=hover, inspector_clear=clear)
+end
+
+# Each `DataInspector`'s rich-text tooltip, made on first use
+const _RICH_TOOLTIPS = WeakKeyDict{DataInspector,Any}()
+
+function _hide_rich_tooltip!(inspector)
+    tt = get(_RICH_TOOLTIPS, inspector, nothing)
+    tt === nothing || (tt.visible[] = false)
+    return nothing
+end
+
+# An empty rich text has no glyphs, which Makie 0.24 cannot lay out: it starts with " ",
+# and an empty label shows no tooltip.
+function _show_rich_tooltip!(inspector, text)
+    isempty(String(text)) && return _hide_rich_tooltip!(inspector)
+    root = inspector.root
+    tt = get!(_RICH_TOOLTIPS, inspector) do
+        p = Makie.tooltip!(
+            root, Observable(Point2f(0)); text=Makie.rich(" "), visible=false
+        )
+        translate!(p, 0, 0, inspector.attributes.depth[])
+        return p
+    end
+    inspector.plot.visible[] = false
+    wx, wy = Makie.widths(Makie.viewport(root)[])
+    px, py = pos = Point2f(mouseposition_px(root))
+    placement = py < 0.75wy ? (:above) : (:below)
+    px < 0.25wx && (placement = :right)
+    px > 0.75wx && (placement = :left)
+    Makie.update!(tt; arg1=pos, placement, text, visible=true)
+    return nothing
+end

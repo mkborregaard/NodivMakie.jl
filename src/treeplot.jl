@@ -103,8 +103,9 @@ Which nodes get them is controlled by `shownodes`.
     tippad = automatic
     """
     The text shown on hovering over a node marker or a branch (with a `DataInspector`):
-    a function of the node name. `automatic` gives the name, and for internal nodes the
-    number of species. A branch shows the node it leads to.
+    a function of the node name, returning a string or rich text (`rich`). `automatic`
+    gives the name, and for internal nodes the number of species. A branch shows the node
+    it leads to.
     """
     hoverlabel = automatic
 
@@ -352,7 +353,7 @@ function Makie.plot!(p::TreePlot)
         n = node_at(p, plt, i)
         n === nothing && return ""
         f = p.hoverlabel[]
-        f === automatic || return string(f(n))
+        f === automatic || return _label_text(f(n))
         return _node_label(p, n)
     end
 
@@ -374,7 +375,7 @@ function Makie.plot!(p::TreePlot)
         linewidth=p.linewidth,
         linestyle=p.linestyle,
         nan_color=p.branch_nan_color,
-        inspector_label=hovertext,
+        _hover_attributes(hovertext)...,
         cmap...,
     )
 
@@ -389,7 +390,7 @@ function Makie.plot!(p::TreePlot)
             strokewidth=p.strokewidth,
             strokecolor=p.strokecolor,
             nan_color=p.nan_color,
-            inspector_label=hovertext,
+            _hover_attributes(hovertext)...,
             cmap...,
         )
     elseif drawmarkers
@@ -413,7 +414,7 @@ function Makie.plot!(p::TreePlot)
                 strokewidth=p.strokewidth,
                 strokecolor=p.strokecolor,
                 label=string(g),
-                inspector_label=hovertext,
+                _hover_attributes(hovertext)...,
             )
         end
     end

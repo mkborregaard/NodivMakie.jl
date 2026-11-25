@@ -25,18 +25,18 @@ function node_at(tp::TreePlot, plt, idx)
 end
 
 """
-    on_node_click(f, ax, plot; range=10)
+    on_node_click(f, ax, plot; range=15)
 
 Call `f(nodename)` when a node of `plot` in `ax` is left-clicked: a node marker or branch
 of a `treeplot`, or a point of an [`ordinationplot`](@ref). `range` is the pick radius in
 pixels. Needs an interactive backend (GLMakie, WGLMakie).
 """
-function on_node_click(f, ax::Axis, p::Union{TreePlot,OrdinationPlot}; range=10)
+function on_node_click(f, ax::Axis, p::Union{TreePlot,OrdinationPlot}; range=15)
     return _on_node_click(f, ax, p, pick; range)
 end
 
 # `pickfn` is the backend's `pick`; the tests swap in a stand-in, as CairoMakie cannot pick
-function _on_node_click(f, ax::Axis, p, pickfn; range=10)
+function _on_node_click(f, ax::Axis, p, pickfn; range=15)
     scene = ax.scene
     return on(events(scene).mousebutton; priority=2) do ev
         (ev.button == Mouse.left && ev.action == Mouse.press) || return Consume(false)

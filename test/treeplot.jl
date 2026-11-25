@@ -51,8 +51,25 @@ end
     @test hover(bl, findfirst(==(l.index["e"]), p.branch_owner[])) == "e"
     p.hoverlabel = n -> uppercase(n)
     @test hover(bl, findfirst(==(l.index["n2"]), p.branch_owner[])) == "N2"
-    DataInspector(fig)                       # harmless without an interactive backend
+    di = DataInspector(fig)                  # harmless without an interactive backend
     @test size(Makie.colorbuffer(fig)) != (0, 0)
+    # a string label goes to the inspector's tooltip; rich text (e.g. coloured parts) to a
+    # second one, which hides again when the hover moves on
+    i = findfirst(==(l.index["n2"]), p.shown[])
+    @test mk.inspector_hover[](di, mk, i)
+    @test di.plot.text[] == "N2"
+    p.hoverlabel = n -> rich(n, "\n", rich("blue"; color=:blue))
+    @test hover(mk, i) == "n2\nblue"         # the plain text, for anything else reading it
+    @test mk.inspector_hover[](di, mk, i)
+    rt = NodivMakie._RICH_TOOLTIPS[di]
+    @test rt.visible[] && !di.plot.visible[]
+    @test rt.text[] isa Makie.RichText
+    @test size(Makie.colorbuffer(fig)) != (0, 0)
+    mk.inspector_clear[](di, mk)
+    @test !rt.visible[]
+    p.hoverlabel = uppercase                 # and back to a string label
+    @test mk.inspector_hover[](di, mk, i)
+    @test di.plot.text[] == "N2" && !rt.visible[]
 end
 
 @testset "node markers" begin
