@@ -32,7 +32,7 @@ which is how the [`node_explorer`](@ref) selects a node from its ordination.
     selectedcolor = :black
     """
     The text shown on hovering over a point (with a `DataInspector`): a function of the node
-    name. `automatic` gives the name.
+    name, returning a string or rich text (`rich`). `automatic` gives the name.
     """
     hoverlabel = automatic
     Makie.mixin_colormap_attributes()...
@@ -64,7 +64,7 @@ function Makie.plot!(p::OrdinationPlot)
         n = node_at(p, plt, i)
         n === nothing && return ""
         f = p.hoverlabel[]
-        return f === automatic ? n : string(f(n))
+        return f === automatic ? n : _label_text(f(n))
     end
 
     scatter!(
@@ -82,7 +82,7 @@ function Makie.plot!(p::OrdinationPlot)
         highclip=p.highclip,
         nan_color=p.nan_color,
         alpha=p.alpha,
-        inspector_label=hovertext,
+        _hover_attributes(hovertext)...,
     )
     scatter!(
         p,

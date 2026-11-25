@@ -28,7 +28,7 @@ using Makie: xlims!
 using Nodiv: Nodiv
 using Nodiv: SOSClusters, SOSOrdination
 using Nodiv: clade_richness, default_score, divergent_nodes, most_divergent, node_scores
-using Nodiv: nodespecies, sos_ordination
+using Nodiv: nodespecies, sos_ordination, sos_similarity
 using Phylo: Phylo
 using Phylo: getchildren, getdescendants, getnodedata, getnodename, getparent, hasinbound
 using Phylo: hasnode, isleaf

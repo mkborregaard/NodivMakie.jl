@@ -79,18 +79,19 @@ function sos_cluster_heatmap(clusters::SOSClusters; title="", labelsize=9, figur
     hc = clusters.hclust
     ord = hc.order
     labs = clusters.nodes[ord]                  # Node names in dendrogram-leaf order
-    S = (1 .- clusters.distances)[ord, ord]     # Similarity |r|, reordered to match
+    S = sos_similarity.(clusters.distances)[ord, ord]  # Similarity |r|, reordered to match
     n = length(labs)
     grp = [clusters.groups[node] for node in labs]  # Cluster of each leaf, in leaf order
 
     fig = Figure(; size=(1300, 1150), figure...)
     Label(fig[0, 1:3], title; fontsize=18, font=:bold)
-    # The dendrogram on the left, its leaves (height 0) against the heatmap; its heights are
-    # drawn at negative x, so the ticks show them as positive
+    # The dendrogram on the left, its leaves (height 0) against the heatmap; its heights,
+    # the distances sqrt(1 - r^2), are drawn at negative x and ticked with their |r|
+    simticks = [1, 0.9, 0.8, 0.6, 0]
     dend = Axis(
         fig[1, 1];
-        xlabel="1 - |r|",
-        xtickformat=xs -> string.(round.(abs.(xs); digits=2)),
+        xlabel="|r|",
+        xticks=(-sqrt.(1 .- simticks .^ 2), string.(simticks)),
         xgridvisible=false,
         ygridvisible=false,
         yticksvisible=false,
