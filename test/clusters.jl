@@ -5,6 +5,9 @@
     c = sos_clusters(D, nodes; simcut=0.7)
     @test length(c.labels) == 2
     @test length(cluster_colors(25)) == 25 && cluster_colors(3) == cluster_colors(25)[1:3]
+    # distinct, and none of them grey, the colour of the nodes on their own
+    @test allunique(cluster_colors(100))
+    @test all(x -> convert(LCHab, x).c >= 25, cluster_colors(100))
 
     fig = sos_cluster_heatmap(c; title="clusters")
     @test fig isa Figure

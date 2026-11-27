@@ -10,6 +10,7 @@ interactive windows.
 module NodivMakie
 
 using ColorTypes: Colorant, alpha
+using Colors: LCHab
 using EcoBase: EcoBase
 using EcoBase: coordinates, getcoords, occupancy, places, richness, xrange, yrange
 using FileIO: FileIO, save
