@@ -14,3 +14,4 @@ NodivMakie = {path = ".."}
 
 [compat]
 Aqua = "0.8"
+Phylo = "0.5.4"
