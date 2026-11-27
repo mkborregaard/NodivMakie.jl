@@ -3,14 +3,25 @@
 # colour the clusters of more than one node by the cluster's `labels`, so the two views can
 # be read against each other.
 
+function _cluster_palette()
+    return filter(to_colormap(:glasbey_category10_n256)) do x
+        lch = convert(LCHab, x)
+        return lch.c >= 25 && 30 <= lch.l <= 85
+    end
+end
+const _CLUSTER_PALETTE = _cluster_palette()
+
 """
     cluster_colors(m)
 
 The colours of `m` clusters, as drawn by [`sos_cluster_heatmap`](@ref) and
-[`cluster_tree`](@ref): cycling through the `:tab20` colour map.
+[`cluster_tree`](@ref): distinct colours from the `:glasbey_category10_n256` colour map,
+which starts with the ten of `:tab10`. Its greys, the usual colour of nodes on their own,
+and its very dark and very light colours are left out, which leaves $(length(_CLUSTER_PALETTE))
+colours; past that they repeat.
 """
 function cluster_colors(m)
-    c = Makie.to_colormap(:tab20)
+    c = _CLUSTER_PALETTE
     return [c[mod1(i, length(c))] for i in 1:m]
 end
 

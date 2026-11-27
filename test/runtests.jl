@@ -1,5 +1,6 @@
 using Aqua
 using CairoMakie
+using Colors: LCHab
 using Nodiv
 using NodivMakie
 using Phylo
